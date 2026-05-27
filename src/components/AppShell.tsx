@@ -6,7 +6,7 @@ import { useAuth, signOut } from "@/lib/auth";
 const nav = [
   { to: "/", label: "Inicio", icon: LayoutDashboard },
   { to: "/inventario", label: "Despensa", icon: Package },
-  { to: "/macros", label: "Macros", icon: Apple },
+  { to: "/macros", label: "Macros", icon: Salad },
   { to: "/calculadora", label: "Calc", icon: Calculator },
   { to: "/dietas", label: "Dietas", icon: ChefHat },
   { to: "/foto", label: "Foto", icon: Camera },
