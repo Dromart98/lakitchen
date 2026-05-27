@@ -1,24 +1,54 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
+import { requireUser } from "@/lib/api-auth";
 
-interface Body {
-  products: Array<{ name: string; location: string; quantity: number; unit: string }>;
-  goals: { kcal: number; protein: number; carbs: number; fat: number };
-  remaining: { kcal: number; protein: number; carbs: number; fat: number };
-  preferences?: string;
-}
+const macroSchema = z.object({
+  kcal: z.number().min(0).max(20000),
+  protein: z.number().min(0).max(2000),
+  carbs: z.number().min(0).max(2000),
+  fat: z.number().min(0).max(2000),
+});
+
+const bodySchema = z.object({
+  products: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(120),
+        location: z.string().trim().max(60).default(""),
+        quantity: z.number().min(0).max(100000),
+        unit: z.string().trim().max(20),
+      }),
+    )
+    .max(100),
+  goals: macroSchema,
+  remaining: macroSchema,
+  preferences: z
+    .string()
+    .max(500)
+    .optional()
+    .transform((s) => (s ?? "").replace(/[\r\n\t`]+/g, " ").slice(0, 500)),
+});
 
 export const Route = createFileRoute("/api/generate-diet")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const auth = await requireUser(request);
+        if (auth instanceof Response) return auth;
+
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
-        let body: Body;
+        let raw: unknown;
         try {
-          body = await request.json();
+          raw = await request.json();
         } catch {
           return json({ error: "JSON inválido" }, 400);
         }
+        const parsed = bodySchema.safeParse(raw);
+        if (!parsed.success) {
+          return json({ error: "Datos inválidos" }, 400);
+        }
+        const body = parsed.data;
 
         const sys = `Eres un nutricionista práctico. Crea un plan de comidas para HOY usando PRIORITARIAMENTE los productos disponibles del usuario. Devuelve SOLO JSON.`;
 

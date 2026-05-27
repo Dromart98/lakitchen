@@ -1,13 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requireUser } from "@/lib/api-auth";
 
 interface Body {
   imageBase64: string; // data URL or raw base64
 }
 
+const MAX_B64_BYTES = 8 * 1024 * 1024; // ~6 MB binary
+
 export const Route = createFileRoute("/api/analyze-meal")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const auth = await requireUser(request);
+        if (auth instanceof Response) return auth;
+
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
         let body: Body;
@@ -16,9 +22,18 @@ export const Route = createFileRoute("/api/analyze-meal")({
         } catch {
           return json({ error: "JSON inválido" }, 400);
         }
-        if (!body.imageBase64) return json({ error: "Falta imageBase64" }, 400);
+        if (!body.imageBase64 || typeof body.imageBase64 !== "string") {
+          return json({ error: "Falta imageBase64" }, 400);
+        }
+        if (body.imageBase64.length > MAX_B64_BYTES) {
+          return json({ error: "Imagen demasiado grande (máx ~6 MB)" }, 413);
+        }
+        const isDataUrl = body.imageBase64.startsWith("data:image/");
+        if (!isDataUrl && !/^[A-Za-z0-9+/=\s]+$/.test(body.imageBase64.slice(0, 200))) {
+          return json({ error: "Formato de imagen no válido" }, 400);
+        }
 
-        const dataUrl = body.imageBase64.startsWith("data:")
+        const dataUrl = isDataUrl
           ? body.imageBase64
           : `data:image/jpeg;base64,${body.imageBase64}`;
 
