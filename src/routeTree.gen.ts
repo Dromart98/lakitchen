@@ -13,6 +13,7 @@ import { Route as MacrosRouteImport } from './routes/macros'
 import { Route as InventarioRouteImport } from './routes/inventario'
 import { Route as FotoRouteImport } from './routes/foto'
 import { Route as DietasRouteImport } from './routes/dietas'
+import { Route as CalculadoraRouteImport } from './routes/calculadora'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGenerateDietRouteImport } from './routes/api/generate-diet'
 import { Route as ApiAnalyzeMealRouteImport } from './routes/api/analyze-meal'
@@ -37,6 +38,11 @@ const DietasRoute = DietasRouteImport.update({
   path: '/dietas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalculadoraRoute = CalculadoraRouteImport.update({
+  id: '/calculadora',
+  path: '/calculadora',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -55,6 +61,7 @@ const ApiAnalyzeMealRoute = ApiAnalyzeMealRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
   '/inventario': typeof InventarioRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
   '/inventario': typeof InventarioRoute
@@ -74,6 +82,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
   '/inventario': typeof InventarioRoute
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/calculadora'
     | '/dietas'
     | '/foto'
     | '/inventario'
@@ -94,6 +104,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/calculadora'
     | '/dietas'
     | '/foto'
     | '/inventario'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/calculadora'
     | '/dietas'
     | '/foto'
     | '/inventario'
@@ -113,6 +125,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CalculadoraRoute: typeof CalculadoraRoute
   DietasRoute: typeof DietasRoute
   FotoRoute: typeof FotoRoute
   InventarioRoute: typeof InventarioRoute
@@ -151,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DietasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calculadora': {
+      id: '/calculadora'
+      path: '/calculadora'
+      fullPath: '/calculadora'
+      preLoaderRoute: typeof CalculadoraRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -177,6 +197,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CalculadoraRoute: CalculadoraRoute,
   DietasRoute: DietasRoute,
   FotoRoute: FotoRoute,
   InventarioRoute: InventarioRoute,
