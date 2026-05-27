@@ -8,7 +8,7 @@ import { Loader2, Sparkles, Trash2, UtensilsCrossed, Wand2 } from "lucide-react"
 export const Route = createFileRoute("/macros")({
   head: () => ({
     meta: [
-      { title: "Macros · Pantry+" },
+      { title: "Macros · LaKitchen" },
       { name: "description", content: "Registra comidas y mantén tus macronutrientes diarios bajo control." },
     ],
   }),

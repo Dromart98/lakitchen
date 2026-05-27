@@ -8,7 +8,7 @@ import { Apple, Loader2, Mail } from "lucide-react";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Acceder · Pantry+" },
+      { title: "Acceder · LaKitchen" },
       { name: "description", content: "Crea tu cuenta o accede para sincronizar tu despensa y macros en todos tus dispositivos." },
     ],
   }),
@@ -97,7 +97,7 @@ function AuthPage() {
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary shadow-glow">
             <Apple className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div className="font-display text-xl font-bold">Pantry+</div>
+          <div className="font-display text-xl font-bold">LaKitchen</div>
         </Link>
 
         <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-card">

@@ -7,7 +7,7 @@ import { ChefHat, Loader2, Plus, Sparkles } from "lucide-react";
 export const Route = createFileRoute("/dietas")({
   head: () => ({
     meta: [
-      { title: "Dietas IA · Pantry+" },
+      { title: "Dietas IA · LaKitchen" },
       { name: "description", content: "Recetas y planes generados con lo que ya tienes en casa." },
     ],
   }),

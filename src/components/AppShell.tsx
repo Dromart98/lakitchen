@@ -1,12 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Apple, Calculator, Camera, ChefHat, LayoutDashboard, LogIn, LogOut, Package, User } from "lucide-react";
+import { Calculator, Camera, ChefHat, LayoutDashboard, LogIn, LogOut, Package, Salad, User, UtensilsCrossed } from "lucide-react";
 import type { ReactNode } from "react";
 import { useAuth, signOut } from "@/lib/auth";
 
 const nav = [
   { to: "/", label: "Inicio", icon: LayoutDashboard },
   { to: "/inventario", label: "Despensa", icon: Package },
-  { to: "/macros", label: "Macros", icon: Apple },
+  { to: "/macros", label: "Macros", icon: Salad },
   { to: "/calculadora", label: "Calc", icon: Calculator },
   { to: "/dietas", label: "Dietas", icon: ChefHat },
   { to: "/foto", label: "Foto", icon: Camera },
@@ -22,10 +22,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
             <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-primary shadow-glow">
-              <Apple className="h-5 w-5 text-primary-foreground" />
+              <UtensilsCrossed className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <div className="font-display text-lg leading-none font-bold tracking-tight">Pantry+</div>
+              <div className="font-display text-lg leading-none font-bold tracking-tight">LaKitchen</div>
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">macro tracker</div>
             </div>
           </Link>
