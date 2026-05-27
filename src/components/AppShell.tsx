@@ -1,11 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Apple, Camera, ChefHat, LayoutDashboard, Package } from "lucide-react";
+import { Apple, Calculator, Camera, ChefHat, LayoutDashboard, Package } from "lucide-react";
 import type { ReactNode } from "react";
 
 const nav = [
   { to: "/", label: "Inicio", icon: LayoutDashboard },
   { to: "/inventario", label: "Despensa", icon: Package },
   { to: "/macros", label: "Macros", icon: Apple },
+  { to: "/calculadora", label: "Calc", icon: Calculator },
   { to: "/dietas", label: "Dietas", icon: ChefHat },
   { to: "/foto", label: "Foto", icon: Camera },
 ] as const;
