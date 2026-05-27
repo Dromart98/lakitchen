@@ -22,10 +22,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
             <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-primary shadow-glow">
-              <Apple className="h-5 w-5 text-primary-foreground" />
+              <UtensilsCrossed className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <div className="font-display text-lg leading-none font-bold tracking-tight">Pantry+</div>
+              <div className="font-display text-lg leading-none font-bold tracking-tight">LaKitchen</div>
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">macro tracker</div>
             </div>
           </Link>
