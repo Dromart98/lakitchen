@@ -7,7 +7,7 @@ import { Camera, Loader2, Plus, Upload } from "lucide-react";
 export const Route = createFileRoute("/foto")({
   head: () => ({
     meta: [
-      { title: "Foto · Pantry+" },
+      { title: "Foto · LaKitchen" },
       { name: "description", content: "Sube una foto de tu comida y calcula calorías y macros con IA." },
     ],
   }),

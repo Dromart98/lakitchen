@@ -8,7 +8,7 @@ import { ArrowRight, Calculator, Check } from "lucide-react";
 export const Route = createFileRoute("/calculadora")({
   head: () => ({
     meta: [
-      { title: "Calculadora · Pantry+" },
+      { title: "Calculadora · LaKitchen" },
       { name: "description", content: "Calcula tus macronutrientes diarios según tu perfil." },
     ],
   }),

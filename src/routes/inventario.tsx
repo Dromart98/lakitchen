@@ -7,7 +7,7 @@ import { AlertTriangle, Minus, Plus, Refrigerator, Snowflake, Trash2, UtensilsCr
 export const Route = createFileRoute("/inventario")({
   head: () => ({
     meta: [
-      { title: "Inventario · Pantry+" },
+      { title: "Inventario · LaKitchen" },
       { name: "description", content: "Gestiona tu despensa, nevera y congelador, con alertas de stock bajo." },
     ],
   }),

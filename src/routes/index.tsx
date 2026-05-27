@@ -7,7 +7,7 @@ import { AlertTriangle, ArrowRight, Camera, ChefHat } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Pantry+ · Inicio" },
+      { title: "LaKitchen · Inicio" },
       { name: "description", content: "Resumen diario de tus macros, inventario y alertas de stock." },
     ],
   }),
