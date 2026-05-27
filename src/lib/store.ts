@@ -218,12 +218,24 @@ export function useProducts() {
   return [state, setAndSync] as const;
 }
 
+function dedupeById<T extends { id: string }>(arr: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const item of arr) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    out.push(item);
+  }
+  return out;
+}
+
 export function useMeals() {
   const [state, setState] = useLocalState<MealEntry[]>(KEY_MEALS, []);
   const setAndSync = useCallback(
     (next: MealEntry[] | ((prev: MealEntry[]) => MealEntry[])) => {
       setState((prev) => {
-        const value = typeof next === "function" ? (next as (p: MealEntry[]) => MealEntry[])(prev) : next;
+        const raw = typeof next === "function" ? (next as (p: MealEntry[]) => MealEntry[])(prev) : next;
+        const value = dedupeById(raw);
         if (currentUserId) syncMeals(prev, value, currentUserId);
         return value;
       });
