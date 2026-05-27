@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requireUser } from "@/lib/api-auth";
 
 export const Route = createFileRoute("/api/estimate-meal")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const auth = await requireUser(request);
+        if (auth instanceof Response) return auth;
+
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
 

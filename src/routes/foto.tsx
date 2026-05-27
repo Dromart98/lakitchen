@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { todayKey, uid, useMeals } from "@/lib/store";
 import { Camera, Loader2, Plus, Upload } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
 
 export const Route = createFileRoute("/foto")({
   head: () => ({
@@ -47,7 +48,7 @@ function PhotoAnalyze() {
   async function analyze(dataUrl: string) {
     setLoading(true);
     try {
-      const res = await fetch("/api/analyze-meal", {
+      const res = await authFetch("/api/analyze-meal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: dataUrl }),

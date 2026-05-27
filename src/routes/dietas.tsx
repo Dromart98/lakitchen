@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { todayKey, uid, useGoals, useMeals, useProducts } from "@/lib/store";
 import { ChefHat, Loader2, Plus, Sparkles } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
 
 export const Route = createFileRoute("/dietas")({
   head: () => ({
@@ -52,7 +53,7 @@ function Diets() {
     setError(null);
     setPlan(null);
     try {
-      const res = await fetch("/api/generate-diet", {
+      const res = await authFetch("/api/generate-diet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
