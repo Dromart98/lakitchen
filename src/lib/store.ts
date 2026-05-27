@@ -112,9 +112,10 @@ async function pullFromCloud(uid: string) {
   let cloudMeals = (mRes.data ?? []) as unknown as MealRow[];
   const cloudGoals = gRes.data as unknown as { kcal: number | string; protein: number | string; carbs: number | string; fat: number | string } | null;
 
-  // First-login migration: push local data when cloud is empty
+  // First-login migration: push local data when cloud is empty (skip seed data)
   const localProducts = load<Product[]>(KEY_PRODUCTS, []);
-  if (cloudProducts.length === 0 && localProducts.length > 0 && localProducts !== SEED_PRODUCTS) {
+  const isSeed = localProducts.length === SEED_PRODUCTS.length && localProducts.every((p, i) => p.id === SEED_PRODUCTS[i].id);
+  if (cloudProducts.length === 0 && localProducts.length > 0 && !isSeed) {
     const rows = localProducts.map((p) => productToRow({ ...p, id: ensureUuid(p.id) }, uid));
     const ins = await supabase.from("products").insert(rows).select();
     cloudProducts = (ins.data ?? []) as unknown as ProductRow[];
