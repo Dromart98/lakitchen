@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { MacroBar } from "@/components/MacroBar";
 import { todayKey, uid, useGoals, useMeals, useProducts, type Product } from "@/lib/store";
 import { Loader2, Sparkles, Trash2, UtensilsCrossed, Wand2 } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
 
 export const Route = createFileRoute("/macros")({
   head: () => ({
@@ -176,7 +177,7 @@ function AiForm({ onAdd }: { onAdd: (m: { id: string; date: string; name: string
     setLoading(true);
     setResult(null);
     try {
-      const res = await fetch("/api/estimate-meal", {
+      const res = await authFetch("/api/estimate-meal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ description: text }),
