@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Apple, Calculator, Camera, ChefHat, LayoutDashboard, LogIn, LogOut, Package, User } from "lucide-react";
+import { Calculator, Camera, ChefHat, LayoutDashboard, LogIn, LogOut, Package, Salad, User, UtensilsCrossed } from "lucide-react";
 import type { ReactNode } from "react";
 import { useAuth, signOut } from "@/lib/auth";
 
