@@ -9,15 +9,23 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as MacrosRouteImport } from './routes/macros'
 import { Route as InventarioRouteImport } from './routes/inventario'
 import { Route as FotoRouteImport } from './routes/foto'
 import { Route as DietasRouteImport } from './routes/dietas'
 import { Route as CalculadoraRouteImport } from './routes/calculadora'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGenerateDietRouteImport } from './routes/api/generate-diet'
+import { Route as ApiEstimateMealRouteImport } from './routes/api/estimate-meal'
 import { Route as ApiAnalyzeMealRouteImport } from './routes/api/analyze-meal'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MacrosRoute = MacrosRouteImport.update({
   id: '/macros',
   path: '/macros',
@@ -43,6 +51,11 @@ const CalculadoraRoute = CalculadoraRouteImport.update({
   path: '/calculadora',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -53,6 +66,11 @@ const ApiGenerateDietRoute = ApiGenerateDietRouteImport.update({
   path: '/api/generate-diet',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEstimateMealRoute = ApiEstimateMealRouteImport.update({
+  id: '/api/estimate-meal',
+  path: '/api/estimate-meal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAnalyzeMealRoute = ApiAnalyzeMealRouteImport.update({
   id: '/api/analyze-meal',
   path: '/api/analyze-meal',
@@ -61,81 +79,109 @@ const ApiAnalyzeMealRoute = ApiAnalyzeMealRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/api/analyze-meal': typeof ApiAnalyzeMealRoute
+  '/api/estimate-meal': typeof ApiEstimateMealRoute
   '/api/generate-diet': typeof ApiGenerateDietRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/api/analyze-meal': typeof ApiAnalyzeMealRoute
+  '/api/estimate-meal': typeof ApiEstimateMealRoute
   '/api/generate-diet': typeof ApiGenerateDietRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/api/analyze-meal': typeof ApiAnalyzeMealRoute
+  '/api/estimate-meal': typeof ApiEstimateMealRoute
   '/api/generate-diet': typeof ApiGenerateDietRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/calculadora'
     | '/dietas'
     | '/foto'
     | '/inventario'
     | '/macros'
+    | '/reset-password'
     | '/api/analyze-meal'
+    | '/api/estimate-meal'
     | '/api/generate-diet'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/calculadora'
     | '/dietas'
     | '/foto'
     | '/inventario'
     | '/macros'
+    | '/reset-password'
     | '/api/analyze-meal'
+    | '/api/estimate-meal'
     | '/api/generate-diet'
   id:
     | '__root__'
     | '/'
+    | '/auth'
     | '/calculadora'
     | '/dietas'
     | '/foto'
     | '/inventario'
     | '/macros'
+    | '/reset-password'
     | '/api/analyze-meal'
+    | '/api/estimate-meal'
     | '/api/generate-diet'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
   CalculadoraRoute: typeof CalculadoraRoute
   DietasRoute: typeof DietasRoute
   FotoRoute: typeof FotoRoute
   InventarioRoute: typeof InventarioRoute
   MacrosRoute: typeof MacrosRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ApiAnalyzeMealRoute: typeof ApiAnalyzeMealRoute
+  ApiEstimateMealRoute: typeof ApiEstimateMealRoute
   ApiGenerateDietRoute: typeof ApiGenerateDietRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/macros': {
       id: '/macros'
       path: '/macros'
@@ -171,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalculadoraRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -185,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGenerateDietRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/estimate-meal': {
+      id: '/api/estimate-meal'
+      path: '/api/estimate-meal'
+      fullPath: '/api/estimate-meal'
+      preLoaderRoute: typeof ApiEstimateMealRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/analyze-meal': {
       id: '/api/analyze-meal'
       path: '/api/analyze-meal'
@@ -197,12 +257,15 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
   CalculadoraRoute: CalculadoraRoute,
   DietasRoute: DietasRoute,
   FotoRoute: FotoRoute,
   InventarioRoute: InventarioRoute,
   MacrosRoute: MacrosRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ApiAnalyzeMealRoute: ApiAnalyzeMealRoute,
+  ApiEstimateMealRoute: ApiEstimateMealRoute,
   ApiGenerateDietRoute: ApiGenerateDietRoute,
 }
 export const routeTree = rootRouteImport

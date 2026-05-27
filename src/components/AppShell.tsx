@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Apple, Calculator, Camera, ChefHat, LayoutDashboard, Package } from "lucide-react";
+import { Apple, Calculator, Camera, ChefHat, LayoutDashboard, LogIn, LogOut, Package, User } from "lucide-react";
 import type { ReactNode } from "react";
+import { useAuth, signOut } from "@/lib/auth";
 
 const nav = [
   { to: "/", label: "Inicio", icon: LayoutDashboard },
@@ -13,11 +14,12 @@ const nav = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
             <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-primary shadow-glow">
               <Apple className="h-5 w-5 text-primary-foreground" />
@@ -47,6 +49,24 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
+          {user ? (
+            <button
+              onClick={() => signOut()}
+              title={user.email ?? "Cerrar sesión"}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              <User className="h-4 w-4 text-primary" />
+              <span className="hidden sm:inline max-w-[120px] truncate">{user.email}</span>
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          ) : (
+            <Link
+              to="/auth"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow"
+            >
+              <LogIn className="h-3.5 w-3.5" /> Acceder
+            </Link>
+          )}
         </div>
       </header>
 
