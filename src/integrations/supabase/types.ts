@@ -14,7 +14,147 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      goals: {
+        Row: {
+          carbs: number
+          fat: number
+          kcal: number
+          protein: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          carbs?: number
+          fat?: number
+          kcal?: number
+          protein?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          carbs?: number
+          fat?: number
+          kcal?: number
+          protein?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      meals: {
+        Row: {
+          carbs: number
+          created_at: string
+          date: string
+          fat: number
+          id: string
+          kcal: number
+          name: string
+          protein: number
+          source: string
+          user_id: string
+        }
+        Insert: {
+          carbs?: number
+          created_at?: string
+          date: string
+          fat?: number
+          id?: string
+          kcal?: number
+          name: string
+          protein?: number
+          source?: string
+          user_id: string
+        }
+        Update: {
+          carbs?: number
+          created_at?: string
+          date?: string
+          fat?: number
+          id?: string
+          kcal?: number
+          name?: string
+          protein?: number
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          carbs: number
+          created_at: string
+          fat: number
+          id: string
+          kcal: number
+          location: string
+          min_stock: number
+          name: string
+          per: string
+          protein: number
+          quantity: number
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          carbs?: number
+          created_at?: string
+          fat?: number
+          id?: string
+          kcal?: number
+          location: string
+          min_stock?: number
+          name: string
+          per: string
+          protein?: number
+          quantity?: number
+          unit: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          carbs?: number
+          created_at?: string
+          fat?: number
+          id?: string
+          kcal?: number
+          location?: string
+          min_stock?: number
+          name?: string
+          per?: string
+          protein?: number
+          quantity?: number
+          unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
