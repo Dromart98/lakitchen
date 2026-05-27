@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as MacrosRouteImport } from './routes/macros'
 import { Route as InventarioRouteImport } from './routes/inventario'
+import { Route as FotoRouteImport } from './routes/foto'
 import { Route as DietasRouteImport } from './routes/dietas'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGenerateDietRouteImport } from './routes/api/generate-diet'
@@ -24,6 +25,11 @@ const MacrosRoute = MacrosRouteImport.update({
 const InventarioRoute = InventarioRouteImport.update({
   id: '/inventario',
   path: '/inventario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FotoRoute = FotoRouteImport.update({
+  id: '/foto',
+  path: '/foto',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DietasRoute = DietasRouteImport.update({
@@ -50,6 +56,7 @@ const ApiAnalyzeMealRoute = ApiAnalyzeMealRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dietas': typeof DietasRoute
+  '/foto': typeof FotoRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
   '/api/analyze-meal': typeof ApiAnalyzeMealRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dietas': typeof DietasRoute
+  '/foto': typeof FotoRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
   '/api/analyze-meal': typeof ApiAnalyzeMealRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dietas': typeof DietasRoute
+  '/foto': typeof FotoRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
   '/api/analyze-meal': typeof ApiAnalyzeMealRoute
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dietas'
+    | '/foto'
     | '/inventario'
     | '/macros'
     | '/api/analyze-meal'
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dietas'
+    | '/foto'
     | '/inventario'
     | '/macros'
     | '/api/analyze-meal'
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dietas'
+    | '/foto'
     | '/inventario'
     | '/macros'
     | '/api/analyze-meal'
@@ -102,6 +114,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DietasRoute: typeof DietasRoute
+  FotoRoute: typeof FotoRoute
   InventarioRoute: typeof InventarioRoute
   MacrosRoute: typeof MacrosRoute
   ApiAnalyzeMealRoute: typeof ApiAnalyzeMealRoute
@@ -122,6 +135,13 @@ declare module '@tanstack/react-router' {
       path: '/inventario'
       fullPath: '/inventario'
       preLoaderRoute: typeof InventarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/foto': {
+      id: '/foto'
+      path: '/foto'
+      fullPath: '/foto'
+      preLoaderRoute: typeof FotoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dietas': {
@@ -158,6 +178,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DietasRoute: DietasRoute,
+  FotoRoute: FotoRoute,
   InventarioRoute: InventarioRoute,
   MacrosRoute: MacrosRoute,
   ApiAnalyzeMealRoute: ApiAnalyzeMealRoute,
