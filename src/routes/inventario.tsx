@@ -166,8 +166,9 @@ function ProductsView({
           );
         })}
       </ul>
-    </>
+    </div>
   );
+
 }
 
 function ShoppingListView() {
