@@ -2,23 +2,67 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MacroBar } from "@/components/MacroBar";
+import { CalculadoraView } from "@/components/CalculadoraView";
+import { HistorialView } from "@/components/HistorialView";
 import { todayKey, uid, useGoals, useMeals, useProducts, type Product } from "@/lib/store";
-import { Loader2, Sparkles, Trash2, UtensilsCrossed, Wand2 } from "lucide-react";
+import { BarChart3, Calculator, Loader2, Salad, Sparkles, Trash2, UtensilsCrossed, Wand2 } from "lucide-react";
 import { authFetch } from "@/lib/auth-fetch";
 
 export const Route = createFileRoute("/macros")({
   head: () => ({
     meta: [
       { title: "Macros · LaKitchen" },
-      { name: "description", content: "Registra comidas y mantén tus macronutrientes diarios bajo control." },
+      { name: "description", content: "Registra comidas, calcula tus macros y revisa tu historial." },
     ],
   }),
   component: Macros,
 });
 
 type Mode = "manual" | "ai" | "ingredients";
+type Section = "today" | "calc" | "history";
 
 function Macros() {
+  const [section, setSection] = useState<Section>("today");
+
+  return (
+    <AppShell>
+      <div className="flex gap-1 rounded-xl bg-muted/40 p-1">
+        <SectionBtn active={section === "today"} onClick={() => setSection("today")}>
+          <Salad className="h-4 w-4" /> Hoy
+        </SectionBtn>
+        <SectionBtn active={section === "calc"} onClick={() => setSection("calc")}>
+          <Calculator className="h-4 w-4" /> Calculadora
+        </SectionBtn>
+        <SectionBtn active={section === "history"} onClick={() => setSection("history")}>
+          <BarChart3 className="h-4 w-4" /> Historial
+        </SectionBtn>
+      </div>
+
+      <div className="mt-5">
+        {section === "today" && <TodayView />}
+        {section === "calc" && <CalculadoraView />}
+        {section === "history" && <HistorialView />}
+      </div>
+    </AppShell>
+  );
+}
+
+function SectionBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold transition sm:text-sm " +
+        (active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
+function TodayView() {
   const [meals, setMeals] = useMeals();
   const [goals, setGoals] = useGoals();
   const [products, setProducts] = useProducts();
@@ -32,7 +76,7 @@ function Macros() {
   const [mode, setMode] = useState<Mode>("manual");
 
   return (
-    <AppShell>
+    <div>
       <h1 className="font-display text-3xl font-bold tracking-tight">Macros de hoy</h1>
       <p className="mt-1 text-sm text-muted-foreground">{Math.round(totals.kcal)} / {goals.kcal} kcal</p>
 
@@ -112,7 +156,7 @@ function Macros() {
           ))}
         </ul>
       </section>
-    </AppShell>
+    </div>
   );
 }
 

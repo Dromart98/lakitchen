@@ -1,22 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { AppShell } from "@/components/AppShell";
 import { useGoals, useMeals, todayKey } from "@/lib/store";
 import { BarChart3, CalendarDays } from "lucide-react";
 
-export const Route = createFileRoute("/historial")({
-  head: () => ({
-    meta: [
-      { title: "Historial · LaKitchen" },
-      { name: "description", content: "Registro diario y resumen semanal de tus macros." },
-    ],
-  }),
-  component: History,
-});
-
 interface DayTotal { date: string; kcal: number; protein: number; carbs: number; fat: number; count: number }
 
-function History() {
+export function HistorialView() {
   const [meals] = useMeals();
   const [goals] = useGoals();
 
@@ -27,7 +15,6 @@ function History() {
       d.kcal += m.kcal; d.protein += m.protein; d.carbs += m.carbs; d.fat += m.fat; d.count += 1;
       map.set(m.date, d);
     }
-    // últimos 14 días (incluyendo días sin registros)
     const out: DayTotal[] = [];
     const today = new Date();
     for (let i = 0; i < 14; i++) {
@@ -44,31 +31,24 @@ function History() {
     (a, d) => ({ kcal: a.kcal + d.kcal, protein: a.protein + d.protein, carbs: a.carbs + d.carbs, fat: a.fat + d.fat, count: a.count + d.count }),
     { kcal: 0, protein: 0, carbs: 0, fat: 0, count: 0 },
   );
-  const avg = {
-    kcal: weekly.kcal / 7,
-    protein: weekly.protein / 7,
-    carbs: weekly.carbs / 7,
-    fat: weekly.fat / 7,
-  };
-
+  const avg = { kcal: weekly.kcal / 7, protein: weekly.protein / 7, carbs: weekly.carbs / 7, fat: weekly.fat / 7 };
   const maxKcal = Math.max(goals.kcal || 0, ...last7.map((d) => d.kcal), 1);
 
   return (
-    <AppShell>
+    <div>
       <div className="flex items-start gap-3">
         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-primary shadow-glow">
           <BarChart3 className="h-6 w-6 text-primary-foreground" />
         </div>
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Historial</h1>
+          <h2 className="font-display text-2xl font-bold tracking-tight">Historial</h2>
           <p className="mt-1 text-sm text-muted-foreground">Resumen semanal y registro diario de los últimos 14 días.</p>
         </div>
       </div>
 
-      {/* Resumen semanal */}
       <section className="mt-5 rounded-2xl border border-border/60 bg-card p-5 shadow-card">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold">Últimos 7 días</h2>
+          <h3 className="font-display text-lg font-semibold">Últimos 7 días</h3>
           <span className="text-xs text-muted-foreground">{weekly.count} comidas</span>
         </div>
         <div className="mt-3 grid grid-cols-4 gap-2 text-center">
@@ -78,7 +58,6 @@ function History() {
           <Tile label="G/día" value={Math.round(avg.fat)} color="fat" />
         </div>
 
-        {/* mini-gráfico de barras */}
         <div className="mt-5">
           <div className="flex h-32 items-end gap-1.5">
             {[...last7].reverse().map((d) => {
@@ -88,9 +67,7 @@ function History() {
                 <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
                   <div className="flex w-full flex-1 items-end">
                     <div
-                      className={
-                        "w-full rounded-t " + (reached ? "bg-success" : d.kcal > 0 ? "bg-primary" : "bg-muted")
-                      }
+                      className={"w-full rounded-t " + (reached ? "bg-success" : d.kcal > 0 ? "bg-primary" : "bg-muted")}
                       style={{ height: `${h}%` }}
                       title={`${d.date}: ${Math.round(d.kcal)} kcal`}
                     />
@@ -108,11 +85,10 @@ function History() {
         </div>
       </section>
 
-      {/* Registro diario */}
       <section className="mt-6">
-        <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold">
+        <h3 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold">
           <CalendarDays className="h-5 w-5 text-primary" /> Diario
-        </h2>
+        </h3>
         <ul className="space-y-2">
           {days.map((d) => {
             const pct = goals.kcal > 0 ? Math.round((d.kcal / goals.kcal) * 100) : 0;
@@ -143,7 +119,7 @@ function History() {
           })}
         </ul>
       </section>
-    </AppShell>
+    </div>
   );
 }
 
