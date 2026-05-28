@@ -5,6 +5,9 @@ import { todayKey, uid, useGoals, useMeals, useProducts } from "@/lib/store";
 import { ChefHat, Check, Copy, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { authFetch } from "@/lib/auth-fetch";
 import { planToText, useDietPlans, type DietMeal, type SavedDietPlan } from "@/lib/dietPlans";
+import { planDeductions } from "@/lib/consume";
+import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/dietas")({
   head: () => ({
