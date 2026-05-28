@@ -241,7 +241,7 @@ function ManualForm({ onAdd }: { onAdd: (m: { id: string; date: string; name: st
 }
 
 // ---- IA por texto ----
-function AiForm({ onAdd }: { onAdd: (m: { id: string; date: string; name: string; kcal: number; protein: number; carbs: number; fat: number; source: "ai" }) => void }) {
+function AiForm({ onAdd }: { onAdd: (m: { id: string; date: string; name: string; kcal: number; protein: number; carbs: number; fat: number; source: "ai" }, text: string) => void }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -269,10 +269,11 @@ function AiForm({ onAdd }: { onAdd: (m: { id: string; date: string; name: string
 
   function save() {
     if (!result) return;
-    onAdd({ id: uid(), date: todayKey(), source: "ai", name: result.name, kcal: result.kcal, protein: result.protein, carbs: result.carbs, fat: result.fat });
+    onAdd({ id: uid(), date: todayKey(), source: "ai", name: result.name, kcal: result.kcal, protein: result.protein, carbs: result.carbs, fat: result.fat }, text);
     setText("");
     setResult(null);
   }
+
 
   return (
     <div className="space-y-2">
