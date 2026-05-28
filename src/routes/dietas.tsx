@@ -45,10 +45,11 @@ function saveDraft(d: Draft | null) {
 }
 
 function Diets() {
-  const [products] = useProducts();
+  const [products, setProducts] = useProducts();
   const [goals] = useGoals();
   const [meals, setMeals] = useMeals();
   const { plans, save, remove } = useDietPlans();
+
 
   const [tab, setTab] = useState<Tab>("generate");
   const [preferences, setPreferences] = useState("");
