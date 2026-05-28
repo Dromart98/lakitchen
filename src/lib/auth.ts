@@ -34,5 +34,6 @@ export async function signOut() {
     localStorage.removeItem("nutri.meals");
     localStorage.removeItem("nutri.goals");
     window.dispatchEvent(new StorageEvent("storage", { key: null }));
+    window.dispatchEvent(new CustomEvent("shopping-list-change"));
   }
 }

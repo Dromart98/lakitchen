@@ -1,7 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Calculator, Camera, ChefHat, LayoutDashboard, LogIn, LogOut, Package, Salad, User, UtensilsCrossed } from "lucide-react";
-import type { ReactNode } from "react";
+import { BarChart3, Calculator, Camera, ChefHat, LayoutDashboard, LogIn, LogOut, Package, Salad, Settings, User, UtensilsCrossed } from "lucide-react";
+import { useEffect, type ReactNode } from "react";
 import { useAuth, signOut } from "@/lib/auth";
+import { applyTheme, getTheme } from "@/lib/theme";
 
 const nav = [
   { to: "/", label: "Inicio", icon: LayoutDashboard },
@@ -10,11 +11,18 @@ const nav = [
   { to: "/calculadora", label: "Calc", icon: Calculator },
   { to: "/dietas", label: "Dietas", icon: ChefHat },
   { to: "/foto", label: "Foto", icon: Camera },
+  { to: "/historial", label: "Historial", icon: BarChart3 },
+  { to: "/ajustes", label: "Ajustes", icon: Settings },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { user } = useAuth();
+
+  useEffect(() => {
+    applyTheme(getTheme());
+  }, []);
+
 
   return (
     <div className="min-h-screen bg-background pb-24">
