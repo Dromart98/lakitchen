@@ -12,10 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as MacrosRouteImport } from './routes/macros'
 import { Route as InventarioRouteImport } from './routes/inventario'
-import { Route as HistorialRouteImport } from './routes/historial'
 import { Route as FotoRouteImport } from './routes/foto'
 import { Route as DietasRouteImport } from './routes/dietas'
-import { Route as CalculadoraRouteImport } from './routes/calculadora'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AjustesRouteImport } from './routes/ajustes'
 import { Route as IndexRouteImport } from './routes/index'
@@ -38,11 +36,6 @@ const InventarioRoute = InventarioRouteImport.update({
   path: '/inventario',
   getParentRoute: () => rootRouteImport,
 } as any)
-const HistorialRoute = HistorialRouteImport.update({
-  id: '/historial',
-  path: '/historial',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const FotoRoute = FotoRouteImport.update({
   id: '/foto',
   path: '/foto',
@@ -51,11 +44,6 @@ const FotoRoute = FotoRouteImport.update({
 const DietasRoute = DietasRouteImport.update({
   id: '/dietas',
   path: '/dietas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CalculadoraRoute = CalculadoraRouteImport.update({
-  id: '/calculadora',
-  path: '/calculadora',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -93,10 +81,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
-  '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
-  '/historial': typeof HistorialRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -108,10 +94,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
-  '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
-  '/historial': typeof HistorialRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -124,10 +108,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
-  '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
-  '/historial': typeof HistorialRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -141,10 +123,8 @@ export interface FileRouteTypes {
     | '/'
     | '/ajustes'
     | '/auth'
-    | '/calculadora'
     | '/dietas'
     | '/foto'
-    | '/historial'
     | '/inventario'
     | '/macros'
     | '/reset-password'
@@ -156,10 +136,8 @@ export interface FileRouteTypes {
     | '/'
     | '/ajustes'
     | '/auth'
-    | '/calculadora'
     | '/dietas'
     | '/foto'
-    | '/historial'
     | '/inventario'
     | '/macros'
     | '/reset-password'
@@ -171,10 +149,8 @@ export interface FileRouteTypes {
     | '/'
     | '/ajustes'
     | '/auth'
-    | '/calculadora'
     | '/dietas'
     | '/foto'
-    | '/historial'
     | '/inventario'
     | '/macros'
     | '/reset-password'
@@ -187,10 +163,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AjustesRoute: typeof AjustesRoute
   AuthRoute: typeof AuthRoute
-  CalculadoraRoute: typeof CalculadoraRoute
   DietasRoute: typeof DietasRoute
   FotoRoute: typeof FotoRoute
-  HistorialRoute: typeof HistorialRoute
   InventarioRoute: typeof InventarioRoute
   MacrosRoute: typeof MacrosRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -222,13 +196,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventarioRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/historial': {
-      id: '/historial'
-      path: '/historial'
-      fullPath: '/historial'
-      preLoaderRoute: typeof HistorialRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/foto': {
       id: '/foto'
       path: '/foto'
@@ -241,13 +208,6 @@ declare module '@tanstack/react-router' {
       path: '/dietas'
       fullPath: '/dietas'
       preLoaderRoute: typeof DietasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/calculadora': {
-      id: '/calculadora'
-      path: '/calculadora'
-      fullPath: '/calculadora'
-      preLoaderRoute: typeof CalculadoraRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -299,10 +259,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AjustesRoute: AjustesRoute,
   AuthRoute: AuthRoute,
-  CalculadoraRoute: CalculadoraRoute,
   DietasRoute: DietasRoute,
   FotoRoute: FotoRoute,
-  HistorialRoute: HistorialRoute,
   InventarioRoute: InventarioRoute,
   MacrosRoute: MacrosRoute,
   ResetPasswordRoute: ResetPasswordRoute,

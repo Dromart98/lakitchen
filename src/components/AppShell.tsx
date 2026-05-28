@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BarChart3, Calculator, Camera, ChefHat, LayoutDashboard, LogIn, LogOut, Package, Salad, Settings, User, UtensilsCrossed } from "lucide-react";
+import { Camera, ChefHat, LayoutDashboard, LogIn, LogOut, Package, Salad, Settings, User, UtensilsCrossed } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { useAuth, signOut } from "@/lib/auth";
 import { applyTheme, getTheme } from "@/lib/theme";
@@ -8,10 +8,8 @@ const nav = [
   { to: "/", label: "Inicio", icon: LayoutDashboard },
   { to: "/inventario", label: "Despensa", icon: Package },
   { to: "/macros", label: "Macros", icon: Salad },
-  { to: "/calculadora", label: "Calc", icon: Calculator },
   { to: "/dietas", label: "Dietas", icon: ChefHat },
   { to: "/foto", label: "Foto", icon: Camera },
-  { to: "/historial", label: "Historial", icon: BarChart3 },
   { to: "/ajustes", label: "Ajustes", icon: Settings },
 ] as const;
 
