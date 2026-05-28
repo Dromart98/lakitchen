@@ -7,6 +7,9 @@ import { HistorialView } from "@/components/HistorialView";
 import { todayKey, uid, useGoals, useMeals, useProducts, type Product } from "@/lib/store";
 import { BarChart3, Calculator, Loader2, Salad, Sparkles, Trash2, UtensilsCrossed, Wand2 } from "lucide-react";
 import { authFetch } from "@/lib/auth-fetch";
+import { deductionsFromText } from "@/lib/consume";
+import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/macros")({
   head: () => ({
