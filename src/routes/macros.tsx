@@ -180,6 +180,19 @@ function TodayView() {
 
 const input = "w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary";
 
+function applyTextDeductions(text: string, products: Product[], setProducts: (fn: (prev: Product[]) => Product[]) => void) {
+  const deds = deductionsFromText(text, products);
+  if (!deds.length) return;
+  setProducts((prev) =>
+    prev.map((pr) => {
+      const d = deds.find((x) => x.id === pr.id);
+      return d ? { ...pr, quantity: Math.max(0, pr.quantity - d.amount) } : pr;
+    }),
+  );
+  toast.success(`Descontado del inventario: ${deds.map((d) => d.name).join(", ")}`);
+}
+
+
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <label className="flex flex-col gap-1">
