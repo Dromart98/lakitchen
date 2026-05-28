@@ -125,7 +125,18 @@ function Diets() {
       { id: uid(), date: today, source: "recipe", name: m.name, kcal: m.kcal, protein: m.protein, carbs: m.carbs, fat: m.fat },
       ...prev,
     ]);
+    const deds = planDeductions(m.ingredients.map((i) => ({ food: i })), products);
+    if (deds.length) {
+      setProducts((prev) =>
+        prev.map((pr) => {
+          const d = deds.find((x) => x.id === pr.id);
+          return d ? { ...pr, quantity: Math.max(0, pr.quantity - d.amount) } : pr;
+        }),
+      );
+      toast.success(`Descontado del inventario: ${deds.map((d) => d.name).join(", ")}`);
+    }
   }
+
 
   async function copyPlan() {
     if (!plan) return;
