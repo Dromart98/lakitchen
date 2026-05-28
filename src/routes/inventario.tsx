@@ -210,6 +210,16 @@ function AddDialog({
         <h2 className="font-display text-xl font-bold">Nuevo producto</h2>
         <p className="mt-1 text-xs text-muted-foreground">Valores nutricionales por 100g/ml o por unidad.</p>
 
+        <button
+          type="button"
+          onClick={estimateMacros}
+          disabled={estimating || !form.name.trim()}
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/15 disabled:opacity-50"
+        >
+          <Sparkles className="h-4 w-4" />
+          {estimating ? "Calculando…" : "Calcular macros con IA"}
+        </button>
+
         <div className="mt-4 grid grid-cols-2 gap-3">
           <Field label="Nombre" className="col-span-2">
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputCls} placeholder="Pechuga de pollo" required />
