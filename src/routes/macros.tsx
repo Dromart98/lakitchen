@@ -98,8 +98,22 @@ function TodayView() {
             <TabBtn active={mode === "ingredients"} onClick={() => setMode("ingredients")}><UtensilsCrossed className="h-3.5 w-3.5" /> Ingredientes</TabBtn>
           </div>
           <div className="mt-4">
-            {mode === "manual" && <ManualForm onAdd={(m) => setMeals((p) => [m, ...p])} />}
-            {mode === "ai" && <AiForm onAdd={(m) => setMeals((p) => [m, ...p])} />}
+            {mode === "manual" && (
+              <ManualForm
+                onAdd={(m) => {
+                  setMeals((p) => [m, ...p]);
+                  applyTextDeductions(m.name, products, setProducts);
+                }}
+              />
+            )}
+            {mode === "ai" && (
+              <AiForm
+                onAdd={(m, text) => {
+                  setMeals((p) => [m, ...p]);
+                  applyTextDeductions(`${m.name} ${text}`, products, setProducts);
+                }}
+              />
+            )}
             {mode === "ingredients" && (
               <IngredientsForm
                 products={products}
@@ -117,6 +131,7 @@ function TodayView() {
               />
             )}
           </div>
+
         </div>
 
         <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-card">
