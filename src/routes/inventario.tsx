@@ -165,9 +165,99 @@ function ProductsView({
           );
         })}
       </ul>
+    </>
+  );
+}
 
-      {open && <AddDialog defaultLocation={tab} onClose={() => setOpen(false)} onAdd={(p) => setProducts((prev) => [p, ...prev])} />}
-    </AppShell>
+function ShoppingListView() {
+  const { items, add, toggleDone, remove, clearDone } = useShoppingList();
+  const [name, setName] = useState("");
+  const [qty, setQty] = useState(1);
+  const [unit, setUnit] = useState("ud");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    await add(name, qty, unit, false);
+    setName("");
+    setQty(1);
+  }
+
+  const pending = items.filter((i) => !i.done);
+  const done = items.filter((i) => i.done);
+
+  return (
+    <div className="mt-5 space-y-4">
+      <form onSubmit={submit} className="grid grid-cols-[1fr_70px_70px_auto] gap-2 rounded-2xl border border-border/60 bg-card p-3">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Producto" className={inputCls} />
+        <input type="number" step="any" value={qty} onChange={(e) => setQty(+e.target.value)} className={inputCls} />
+        <select value={unit} onChange={(e) => setUnit(e.target.value)} className={inputCls}>
+          <option value="ud">ud</option>
+          <option value="g">g</option>
+          <option value="kg">kg</option>
+          <option value="ml">ml</option>
+          <option value="l">l</option>
+        </select>
+        <button className="rounded-xl bg-gradient-primary px-3 text-sm font-semibold text-primary-foreground shadow-glow">
+          <Plus className="h-4 w-4" />
+        </button>
+      </form>
+
+      {pending.length === 0 && done.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+          Lista vacía. Los productos agotados aparecerán aquí automáticamente.
+        </div>
+      )}
+
+      {pending.length > 0 && (
+        <ul className="space-y-2">
+          {pending.map((it) => (
+            <li key={it.id} className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-3 shadow-card">
+              <button onClick={() => toggleDone(it.id, true)} className="rounded-lg border border-border bg-muted/40 p-2 hover:bg-muted">
+                <Check className="h-4 w-4" />
+              </button>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="font-medium truncate">{it.name}</div>
+                  {it.auto && (
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">auto</span>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground">{it.quantity} {it.unit}</div>
+              </div>
+              <button onClick={() => remove(it.id)} className="rounded-lg p-2 text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {done.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Comprados ({done.length})</span>
+            <button onClick={clearDone} className="text-xs text-destructive hover:underline">Vaciar</button>
+          </div>
+          <ul className="space-y-2">
+            {done.map((it) => (
+              <li key={it.id} className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 p-3 opacity-60">
+                <button onClick={() => toggleDone(it.id, false)} className="rounded-lg border border-border bg-muted/40 p-2">
+                  <Check className="h-4 w-4 text-primary" />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate line-through">{it.name}</div>
+                  <div className="text-xs text-muted-foreground">{it.quantity} {it.unit}</div>
+                </div>
+                <button onClick={() => remove(it.id)} className="rounded-lg p-2 text-destructive hover:bg-destructive/10">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
