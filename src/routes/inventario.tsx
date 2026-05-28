@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/store";
+import { useShoppingList } from "@/lib/shopping";
 import { authFetch } from "@/lib/auth-fetch";
-import { AlertTriangle, Minus, Plus, Refrigerator, Snowflake, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
+import { AlertTriangle, Check, Minus, Plus, Refrigerator, ShoppingCart, Snowflake, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/inventario")({
@@ -22,8 +23,11 @@ const LOCATIONS: { key: Location; label: string; icon: typeof UtensilsCrossed }[
   { key: "congelador", label: "Congelador", icon: Snowflake },
 ];
 
+type Section = "products" | "shopping";
+
 function Inventory() {
   const [products, setProducts] = useProducts();
+  const [section, setSection] = useState<Section>("products");
   const [tab, setTab] = useState<Location>("despensa");
   const [open, setOpen] = useState(false);
 
@@ -44,15 +48,54 @@ function Inventory() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">Inventario</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Controla lo que tienes y recibe alertas.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Controla lo que tienes y tu lista de la compra.</p>
         </div>
+        {section === "products" && (
+          <button
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow"
+          >
+            <Plus className="h-4 w-4" /> Añadir
+          </button>
+        )}
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl border border-border/60 bg-card p-1.5">
         <button
-          onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow"
+          onClick={() => setSection("products")}
+          className={"flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition " + (section === "products" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted")}
         >
-          <Plus className="h-4 w-4" /> Añadir
+          <UtensilsCrossed className="h-4 w-4" /> Productos
+        </button>
+        <button
+          onClick={() => setSection("shopping")}
+          className={"flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition " + (section === "shopping" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted")}
+        >
+          <ShoppingCart className="h-4 w-4" /> Lista de la compra
         </button>
       </div>
+
+      {section === "shopping" ? (
+        <ShoppingListView />
+      ) : (
+        <ProductsView products={products} list={list} tab={tab} setTab={setTab} adjust={adjust} remove={remove} />
+      )}
+
+      {open && section === "products" && (
+        <AddDialog defaultLocation={tab} onClose={() => setOpen(false)} onAdd={(p) => setProducts((prev) => [p, ...prev])} />
+      )}
+    </AppShell>
+  );
+}
+
+function ProductsView({
+  products, list, tab, setTab, adjust, remove,
+}: {
+  products: Product[]; list: Product[]; tab: Location;
+  setTab: (l: Location) => void; adjust: (id: string, d: number) => void; remove: (id: string) => void;
+}) {
+  return (
+    <>
 
       <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl border border-border/60 bg-card p-1.5">
         {LOCATIONS.map(({ key, label, icon: Icon }) => {

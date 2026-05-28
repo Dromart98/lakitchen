@@ -12,10 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as MacrosRouteImport } from './routes/macros'
 import { Route as InventarioRouteImport } from './routes/inventario'
+import { Route as HistorialRouteImport } from './routes/historial'
 import { Route as FotoRouteImport } from './routes/foto'
 import { Route as DietasRouteImport } from './routes/dietas'
 import { Route as CalculadoraRouteImport } from './routes/calculadora'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AjustesRouteImport } from './routes/ajustes'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGenerateDietRouteImport } from './routes/api/generate-diet'
 import { Route as ApiEstimateMealRouteImport } from './routes/api/estimate-meal'
@@ -36,6 +38,11 @@ const InventarioRoute = InventarioRouteImport.update({
   path: '/inventario',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HistorialRoute = HistorialRouteImport.update({
+  id: '/historial',
+  path: '/historial',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FotoRoute = FotoRouteImport.update({
   id: '/foto',
   path: '/foto',
@@ -54,6 +61,11 @@ const CalculadoraRoute = CalculadoraRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AjustesRoute = AjustesRouteImport.update({
+  id: '/ajustes',
+  path: '/ajustes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -79,10 +91,12 @@ const ApiAnalyzeMealRoute = ApiAnalyzeMealRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
   '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
+  '/historial': typeof HistorialRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -92,10 +106,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
   '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
+  '/historial': typeof HistorialRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -106,10 +122,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
   '/calculadora': typeof CalculadoraRoute
   '/dietas': typeof DietasRoute
   '/foto': typeof FotoRoute
+  '/historial': typeof HistorialRoute
   '/inventario': typeof InventarioRoute
   '/macros': typeof MacrosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -121,10 +139,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/ajustes'
     | '/auth'
     | '/calculadora'
     | '/dietas'
     | '/foto'
+    | '/historial'
     | '/inventario'
     | '/macros'
     | '/reset-password'
@@ -134,10 +154,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/ajustes'
     | '/auth'
     | '/calculadora'
     | '/dietas'
     | '/foto'
+    | '/historial'
     | '/inventario'
     | '/macros'
     | '/reset-password'
@@ -147,10 +169,12 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/ajustes'
     | '/auth'
     | '/calculadora'
     | '/dietas'
     | '/foto'
+    | '/historial'
     | '/inventario'
     | '/macros'
     | '/reset-password'
@@ -161,10 +185,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AjustesRoute: typeof AjustesRoute
   AuthRoute: typeof AuthRoute
   CalculadoraRoute: typeof CalculadoraRoute
   DietasRoute: typeof DietasRoute
   FotoRoute: typeof FotoRoute
+  HistorialRoute: typeof HistorialRoute
   InventarioRoute: typeof InventarioRoute
   MacrosRoute: typeof MacrosRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -196,6 +222,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventarioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/historial': {
+      id: '/historial'
+      path: '/historial'
+      fullPath: '/historial'
+      preLoaderRoute: typeof HistorialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/foto': {
       id: '/foto'
       path: '/foto'
@@ -222,6 +255,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ajustes': {
+      id: '/ajustes'
+      path: '/ajustes'
+      fullPath: '/ajustes'
+      preLoaderRoute: typeof AjustesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -257,10 +297,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AjustesRoute: AjustesRoute,
   AuthRoute: AuthRoute,
   CalculadoraRoute: CalculadoraRoute,
   DietasRoute: DietasRoute,
   FotoRoute: FotoRoute,
+  HistorialRoute: HistorialRoute,
   InventarioRoute: InventarioRoute,
   MacrosRoute: MacrosRoute,
   ResetPasswordRoute: ResetPasswordRoute,
@@ -271,13 +313,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

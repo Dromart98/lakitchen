@@ -3,6 +3,7 @@
 // pushed to Supabase and the cache is rehydrated on auth changes.
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { autoAddDepleted } from "@/lib/shopping";
 
 export type Location = "despensa" | "nevera" | "congelador";
 export type Unit = "ud" | "g" | "kg" | "ml" | "l";
@@ -59,16 +60,11 @@ function save<T>(key: string, value: T) {
   window.dispatchEvent(new StorageEvent("storage", { key }));
 }
 
-const SEED_PRODUCTS: Product[] = [
-  { id: "p1", name: "Pechuga de pollo", location: "nevera", quantity: 500, unit: "g", minStock: 200, per: "100g", kcal: 165, protein: 31, carbs: 0, fat: 3.6 },
-  { id: "p2", name: "Arroz blanco", location: "despensa", quantity: 1000, unit: "g", minStock: 300, per: "100g", kcal: 130, protein: 2.7, carbs: 28, fat: 0.3 },
-  { id: "p3", name: "Huevos", location: "nevera", quantity: 12, unit: "ud", minStock: 4, per: "unit", kcal: 72, protein: 6.3, carbs: 0.4, fat: 5 },
-  { id: "p4", name: "Brócoli", location: "congelador", quantity: 400, unit: "g", minStock: 200, per: "100g", kcal: 34, protein: 2.8, carbs: 7, fat: 0.4 },
-  { id: "p5", name: "Avena", location: "despensa", quantity: 500, unit: "g", minStock: 200, per: "100g", kcal: 389, protein: 17, carbs: 66, fat: 7 },
-  { id: "p6", name: "Aceite de oliva", location: "despensa", quantity: 750, unit: "ml", minStock: 200, per: "100g", kcal: 884, protein: 0, carbs: 0, fat: 100 },
-];
+// Sin productos por defecto: los usuarios nuevos empiezan con inventario vacío.
+const SEED_PRODUCTS: Product[] = [];
 
-const DEFAULT_GOALS: Goals = { kcal: 2200, protein: 150, carbs: 250, fat: 70 };
+// Objetivos iniciales a 0: el usuario los configurará en /calculadora.
+const DEFAULT_GOALS: Goals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
 
 // ---- Supabase sync ----
 let currentUserId: string | null = null;
@@ -209,6 +205,14 @@ export function useProducts() {
     (next: Product[] | ((prev: Product[]) => Product[])) => {
       setState((prev) => {
         const value = typeof next === "function" ? (next as (p: Product[]) => Product[])(prev) : next;
+        // Detecta productos que acaban de quedarse a 0 → añade a la lista de la compra.
+        const prevMap = new Map(prev.map((p) => [p.id, p] as const));
+        for (const p of value) {
+          const before = prevMap.get(p.id);
+          if (before && before.quantity > 0 && p.quantity <= 0) {
+            autoAddDepleted(p.name, p.unit);
+          }
+        }
         if (currentUserId) syncProducts(prev, value, currentUserId);
         return value;
       });

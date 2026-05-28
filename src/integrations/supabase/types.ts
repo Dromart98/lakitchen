@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      diet_plans: {
+        Row: {
+          created_at: string
+          id: string
+          meals: Json
+          notes: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meals?: Json
+          notes?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meals?: Json
+          notes?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           carbs: number
@@ -150,6 +180,42 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      shopping_list: {
+        Row: {
+          auto: boolean
+          created_at: string
+          done: boolean
+          id: string
+          name: string
+          quantity: number
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto?: boolean
+          created_at?: string
+          done?: boolean
+          id?: string
+          name: string
+          quantity?: number
+          unit?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto?: boolean
+          created_at?: string
+          done?: boolean
+          id?: string
+          name?: string
+          quantity?: number
+          unit?: string
           updated_at?: string
           user_id?: string
         }

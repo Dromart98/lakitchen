@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { todayKey, uid, useMeals } from "@/lib/store";
+import { todayKey, uid, useMeals, useProducts } from "@/lib/store";
 import { Camera, Loader2, Plus, Upload } from "lucide-react";
 import { authFetch } from "@/lib/auth-fetch";
+import { compressImage } from "@/lib/compress";
+import { planDeductions } from "@/lib/consume";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/foto")({
   head: () => ({
@@ -25,22 +28,25 @@ interface Result {
 
 function PhotoAnalyze() {
   const [, setMeals] = useMeals();
+  const [products, setProducts] = useProducts();
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  const [deduct, setDeduct] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result as string;
-      setPreview(data);
+    reader.onload = async () => {
+      const raw = reader.result as string;
+      const compressed = await compressImage(raw).catch(() => raw);
+      setPreview(compressed);
       setResult(null);
       setError(null);
-      analyze(data);
+      analyze(compressed);
     };
     reader.readAsDataURL(f);
   }
@@ -78,6 +84,20 @@ function PhotoAnalyze() {
       },
       ...prev,
     ]);
+    if (deduct) {
+      const deds = planDeductions(result.items, products);
+      if (deds.length) {
+        setProducts((prev) =>
+          prev.map((pr) => {
+            const d = deds.find((x) => x.id === pr.id);
+            return d ? { ...pr, quantity: Math.max(0, pr.quantity - d.amount) } : pr;
+          }),
+        );
+        toast.success(`Descontado del inventario: ${deds.map((d) => d.name).join(", ")}`);
+      } else {
+        toast.message("No se encontraron coincidencias en tu inventario.");
+      }
+    }
     setResult(null);
     setPreview(null);
   }
@@ -152,9 +172,13 @@ function PhotoAnalyze() {
                 ))}
               </ul>
               {result.notes && <p className="mt-3 text-xs italic text-muted-foreground">{result.notes}</p>}
+              <label className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <input type="checkbox" checked={deduct} onChange={(e) => setDeduct(e.target.checked)} />
+                Descontar ingredientes del inventario (best-effort por nombre)
+              </label>
               <button
                 onClick={log}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow"
               >
                 <Plus className="h-4 w-4" /> Añadir a hoy
               </button>
