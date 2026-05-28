@@ -61,3 +61,18 @@ export function planDeductions(items: ConsumeItem[], products: Product[]): { id:
   }
   return out;
 }
+
+/** Escanea un texto libre y devuelve deducciones para todos los productos del inventario mencionados. */
+export function deductionsFromText(text: string, products: Product[]): { id: string; amount: number; name: string }[] {
+  const norm = normalize(text);
+  if (!norm) return [];
+  const out: { id: string; amount: number; name: string }[] = [];
+  for (const p of products) {
+    const toks = tokens(p.name);
+    if (!toks.length) continue;
+    const hit = toks.some((t) => t.length >= 3 && new RegExp(`\\b${t}`).test(norm));
+    if (hit) out.push({ id: p.id, amount: inferAmount(text, p), name: p.name });
+  }
+  return out;
+}
+

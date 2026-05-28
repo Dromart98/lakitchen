@@ -7,6 +7,9 @@ import { HistorialView } from "@/components/HistorialView";
 import { todayKey, uid, useGoals, useMeals, useProducts, type Product } from "@/lib/store";
 import { BarChart3, Calculator, Loader2, Salad, Sparkles, Trash2, UtensilsCrossed, Wand2 } from "lucide-react";
 import { authFetch } from "@/lib/auth-fetch";
+import { deductionsFromText } from "@/lib/consume";
+import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/macros")({
   head: () => ({
@@ -95,8 +98,22 @@ function TodayView() {
             <TabBtn active={mode === "ingredients"} onClick={() => setMode("ingredients")}><UtensilsCrossed className="h-3.5 w-3.5" /> Ingredientes</TabBtn>
           </div>
           <div className="mt-4">
-            {mode === "manual" && <ManualForm onAdd={(m) => setMeals((p) => [m, ...p])} />}
-            {mode === "ai" && <AiForm onAdd={(m) => setMeals((p) => [m, ...p])} />}
+            {mode === "manual" && (
+              <ManualForm
+                onAdd={(m) => {
+                  setMeals((p) => [m, ...p]);
+                  applyTextDeductions(m.name, products, setProducts);
+                }}
+              />
+            )}
+            {mode === "ai" && (
+              <AiForm
+                onAdd={(m, text) => {
+                  setMeals((p) => [m, ...p]);
+                  applyTextDeductions(`${m.name} ${text}`, products, setProducts);
+                }}
+              />
+            )}
             {mode === "ingredients" && (
               <IngredientsForm
                 products={products}
@@ -114,6 +131,7 @@ function TodayView() {
               />
             )}
           </div>
+
         </div>
 
         <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-card">
@@ -161,6 +179,19 @@ function TodayView() {
 }
 
 const input = "w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary";
+
+function applyTextDeductions(text: string, products: Product[], setProducts: (fn: (prev: Product[]) => Product[]) => void) {
+  const deds = deductionsFromText(text, products);
+  if (!deds.length) return;
+  setProducts((prev) =>
+    prev.map((pr) => {
+      const d = deds.find((x) => x.id === pr.id);
+      return d ? { ...pr, quantity: Math.max(0, pr.quantity - d.amount) } : pr;
+    }),
+  );
+  toast.success(`Descontado del inventario: ${deds.map((d) => d.name).join(", ")}`);
+}
+
 
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -210,7 +241,7 @@ function ManualForm({ onAdd }: { onAdd: (m: { id: string; date: string; name: st
 }
 
 // ---- IA por texto ----
-function AiForm({ onAdd }: { onAdd: (m: { id: string; date: string; name: string; kcal: number; protein: number; carbs: number; fat: number; source: "ai" }) => void }) {
+function AiForm({ onAdd }: { onAdd: (m: { id: string; date: string; name: string; kcal: number; protein: number; carbs: number; fat: number; source: "ai" }, text: string) => void }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -238,10 +269,11 @@ function AiForm({ onAdd }: { onAdd: (m: { id: string; date: string; name: string
 
   function save() {
     if (!result) return;
-    onAdd({ id: uid(), date: todayKey(), source: "ai", name: result.name, kcal: result.kcal, protein: result.protein, carbs: result.carbs, fat: result.fat });
+    onAdd({ id: uid(), date: todayKey(), source: "ai", name: result.name, kcal: result.kcal, protein: result.protein, carbs: result.carbs, fat: result.fat }, text);
     setText("");
     setResult(null);
   }
+
 
   return (
     <div className="space-y-2">

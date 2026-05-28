@@ -5,6 +5,9 @@ import { todayKey, uid, useGoals, useMeals, useProducts } from "@/lib/store";
 import { ChefHat, Check, Copy, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { authFetch } from "@/lib/auth-fetch";
 import { planToText, useDietPlans, type DietMeal, type SavedDietPlan } from "@/lib/dietPlans";
+import { planDeductions } from "@/lib/consume";
+import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/dietas")({
   head: () => ({
@@ -45,10 +48,11 @@ function saveDraft(d: Draft | null) {
 }
 
 function Diets() {
-  const [products] = useProducts();
+  const [products, setProducts] = useProducts();
   const [goals] = useGoals();
   const [meals, setMeals] = useMeals();
   const { plans, save, remove } = useDietPlans();
+
 
   const [tab, setTab] = useState<Tab>("generate");
   const [preferences, setPreferences] = useState("");
@@ -124,7 +128,18 @@ function Diets() {
       { id: uid(), date: today, source: "recipe", name: m.name, kcal: m.kcal, protein: m.protein, carbs: m.carbs, fat: m.fat },
       ...prev,
     ]);
+    const deds = planDeductions(m.ingredients.map((i) => ({ food: i })), products);
+    if (deds.length) {
+      setProducts((prev) =>
+        prev.map((pr) => {
+          const d = deds.find((x) => x.id === pr.id);
+          return d ? { ...pr, quantity: Math.max(0, pr.quantity - d.amount) } : pr;
+        }),
+      );
+      toast.success(`Descontado del inventario: ${deds.map((d) => d.name).join(", ")}`);
+    }
   }
+
 
   async function copyPlan() {
     if (!plan) return;
