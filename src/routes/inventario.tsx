@@ -95,7 +95,8 @@ function ProductsView({
   setTab: (l: Location) => void; adjust: (id: string, d: number) => void; remove: (id: string) => void;
 }) {
   return (
-    <>
+    <div>
+
 
       <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl border border-border/60 bg-card p-1.5">
         {LOCATIONS.map(({ key, label, icon: Icon }) => {
@@ -165,8 +166,9 @@ function ProductsView({
           );
         })}
       </ul>
-    </>
+    </div>
   );
+
 }
 
 function ShoppingListView() {
