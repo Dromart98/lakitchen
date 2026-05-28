@@ -2,7 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/store";
-import { AlertTriangle, Minus, Plus, Refrigerator, Snowflake, Trash2, UtensilsCrossed } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
+import { AlertTriangle, Minus, Plus, Refrigerator, Snowflake, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/inventario")({
   head: () => ({
