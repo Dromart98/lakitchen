@@ -157,6 +157,42 @@ function AddDialog({
     fat: 0,
   });
 
+  const [estimating, setEstimating] = useState(false);
+
+  async function estimateMacros() {
+    const name = form.name.trim();
+    if (!name) {
+      toast.error("Escribe el nombre del producto");
+      return;
+    }
+    setEstimating(true);
+    try {
+      const unitLabel = form.per === "100g"
+        ? (form.unit === "ml" || form.unit === "l" ? "100 ml" : "100 g")
+        : "1 unidad";
+      const description = `Valor nutricional medio por ${unitLabel} de: ${name}. Devuelve kcal y macros para esa cantidad exacta.`;
+      const res = await authFetch("/api/estimate-meal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error IA");
+      setForm((f) => ({
+        ...f,
+        kcal: Math.round(data.kcal ?? 0),
+        protein: Math.round((data.protein ?? 0) * 10) / 10,
+        carbs: Math.round((data.carbs ?? 0) * 10) / 10,
+        fat: Math.round((data.fat ?? 0) * 10) / 10,
+      }));
+      toast.success("Macros estimados con IA");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error estimando macros");
+    } finally {
+      setEstimating(false);
+    }
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) return;
