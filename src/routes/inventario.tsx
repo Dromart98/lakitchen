@@ -190,19 +190,22 @@ function ShoppingListView() {
 
   return (
     <div className="mt-5 space-y-4">
-      <form onSubmit={submit} className="grid grid-cols-[1fr_70px_70px_auto] gap-2 rounded-2xl border border-border/60 bg-card p-3">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Producto" className={inputCls} />
-        <input type="number" step="any" value={qty} onChange={(e) => setQty(+e.target.value)} className={inputCls} />
-        <select value={unit} onChange={(e) => setUnit(e.target.value)} className={inputCls}>
-          <option value="ud">ud</option>
-          <option value="g">g</option>
-          <option value="kg">kg</option>
-          <option value="ml">ml</option>
-          <option value="l">l</option>
-        </select>
-        <button className="rounded-xl bg-gradient-primary px-3 text-sm font-semibold text-primary-foreground shadow-glow">
-          <Plus className="h-4 w-4" />
-        </button>
+      <form onSubmit={submit} className="rounded-2xl border border-border/60 bg-card p-3 space-y-2">
+        <div className="text-xs font-medium text-muted-foreground px-1">Añadir producto a la lista</div>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Leche, pan, tomates..." className={inputCls} />
+        <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+          <input type="number" step="any" value={qty} onChange={(e) => setQty(+e.target.value)} className={inputCls} placeholder="Cantidad" />
+          <select value={unit} onChange={(e) => setUnit(e.target.value)} className={inputCls}>
+            <option value="ud">ud</option>
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="ml">ml</option>
+            <option value="l">l</option>
+          </select>
+          <button disabled={!name.trim()} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
+            <Plus className="h-4 w-4" /> Añadir
+          </button>
+        </div>
       </form>
 
       {pending.length === 0 && done.length === 0 && (
