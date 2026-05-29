@@ -303,7 +303,7 @@ function Diets() {
         <section className="mt-5 space-y-2">
           {plans.length === 0 && (
             <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-              Aún no tienes planes guardados. Genera uno y se guardará automáticamente.
+              Aún no tienes planes guardados. Genera un plan y pulsa "Guardar plan".
             </div>
           )}
           {plans.map((p) => (
