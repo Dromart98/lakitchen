@@ -31,15 +31,14 @@ const bodySchema = z.object({
   mode: z.enum(["day", "week"]).default("day"),
 });
 
+type DietRequest = z.infer<typeof bodySchema>;
+
 export const Route = createFileRoute("/api/generate-diet")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         const auth = await requireUser(request);
         if (auth instanceof Response) return auth;
-
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
 
         let raw: unknown;
         try {
@@ -53,6 +52,10 @@ export const Route = createFileRoute("/api/generate-diet")({
         }
         const body = parsed.data;
         const isWeek = body.mode === "week";
+        const fallbackResponse = (reason: string) => json(buildFallbackPlan(body, reason));
+
+        const key = process.env.LOVABLE_API_KEY;
+        if (!key) return fallbackResponse("La IA no está disponible ahora mismo.");
 
         const productsList = body.products
           .map((p) => `- [${p.location}] ${p.name}: ${p.quantity}${p.unit}`)
@@ -143,19 +146,16 @@ REGLAS:
           clearTimeout(timeout);
           const aborted = e instanceof Error && e.name === "AbortError";
           console.error("generate-diet: fetch failed", e);
-          return json(
-            { error: aborted ? "La IA tardó demasiado. Inténtalo de nuevo." : "No se pudo contactar con la IA." },
-            504,
-          );
+          return fallbackResponse(aborted ? "La IA tardó demasiado." : "No se pudo contactar con la IA.");
         }
         clearTimeout(timeout);
 
         const rawText = await upstream.text();
         if (!upstream.ok) {
           console.error("generate-diet: upstream error", upstream.status, rawText.slice(0, 500));
-          if (upstream.status === 429) return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
-          if (upstream.status === 402) return json({ error: "Sin créditos en Lovable AI. Añade fondos en Ajustes." }, 402);
-          return json({ error: `Error IA (${upstream.status})` }, 502);
+          if (upstream.status === 429) return fallbackResponse("Límite de uso de IA alcanzado.");
+          if (upstream.status === 402) return fallbackResponse("Sin créditos de IA disponibles.");
+          return fallbackResponse(`Error IA (${upstream.status}).`);
         }
 
         let data: { choices?: Array<{ message?: { tool_calls?: Array<{ function?: { arguments?: string } }>; content?: string } }> };
@@ -163,14 +163,14 @@ REGLAS:
           data = JSON.parse(rawText);
         } catch {
           console.error("generate-diet: upstream non-JSON", rawText.slice(0, 500));
-          return json({ error: "Respuesta IA inválida" }, 502);
+          return fallbackResponse("La IA devolvió una respuesta inválida.");
         }
 
         const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
         if (!args) {
           const content = data.choices?.[0]?.message?.content ?? "";
           console.error("generate-diet: no tool call", { content: content.slice(0, 300) });
-          return json({ error: "La IA no devolvió un plan estructurado. Inténtalo de nuevo." }, 502);
+          return fallbackResponse("La IA no devolvió un plan estructurado.");
         }
 
         let parsedArgs: { meals?: DietMeal[]; notes?: string };
@@ -178,12 +178,12 @@ REGLAS:
           parsedArgs = JSON.parse(args);
         } catch {
           console.error("generate-diet: args non-JSON", args.slice(0, 500));
-          return json({ error: "Respuesta IA no parseable" }, 502);
+          return fallbackResponse("La IA devolvió datos no parseables.");
         }
 
         if (!parsedArgs.meals || !Array.isArray(parsedArgs.meals) || parsedArgs.meals.length === 0) {
           console.error("generate-diet: empty meals", parsedArgs);
-          return json({ error: "La IA no devolvió comidas. Inténtalo de nuevo." }, 502);
+          return fallbackResponse("La IA no devolvió comidas.");
         }
 
         return json({ meals: parsedArgs.meals, notes: parsedArgs.notes ?? "" });
