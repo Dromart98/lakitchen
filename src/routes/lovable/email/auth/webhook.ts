@@ -110,6 +110,13 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           run_id,
         })
 
+        // Only signup confirmation and password recovery are enabled.
+        // Acknowledge other auth event types without sending so Supabase doesn't retry.
+        if (emailType !== 'signup' && emailType !== 'recovery') {
+          console.log('Ignoring disabled auth email type', { emailType, run_id })
+          return Response.json({ ok: true, ignored: true }, { status: 200 })
+        }
+
         const EmailTemplate = EMAIL_TEMPLATES[emailType]
         if (!EmailTemplate) {
           console.error('Unknown email type', { emailType, run_id })
