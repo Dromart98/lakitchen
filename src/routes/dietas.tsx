@@ -204,6 +204,35 @@ function Diets() {
       {tab === "generate" && (
         <>
           <div className="mt-5 rounded-2xl border border-border/60 bg-card p-5 shadow-card">
+            <div className="mb-4">
+              <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Alcance del plan</div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMode("day")}
+                  className={
+                    "rounded-xl border px-3 py-2.5 text-sm font-semibold transition " +
+                    (mode === "day"
+                      ? "border-primary bg-primary/15 text-primary shadow-glow"
+                      : "border-border bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground")
+                  }
+                >
+                  Solo hoy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("week")}
+                  className={
+                    "rounded-xl border px-3 py-2.5 text-sm font-semibold transition " +
+                    (mode === "week"
+                      ? "border-primary bg-primary/15 text-primary shadow-glow"
+                      : "border-border bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground")
+                  }
+                >
+                  Toda la semana
+                </button>
+              </div>
+            </div>
             <label className="text-xs font-medium text-muted-foreground">Título (opcional)</label>
             <input
               value={title}
@@ -212,6 +241,7 @@ function Diets() {
               className="mt-1 mb-3 w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
             <label className="text-xs font-medium text-muted-foreground">Preferencias o restricciones (opcional)</label>
+
             <input
               value={preferences}
               onChange={(e) => setPreferences(e.target.value)}
