@@ -1,11 +1,11 @@
 // Tema visual de la app. Se aplica vía atributo data-theme en <html>.
-export type ThemeId = "kitchen" | "warm" | "night" | "light";
+export type ThemeId = "kitchen" | "mint" | "platinum" | "light";
 
 export const THEMES: { id: ThemeId; label: string; description: string; swatch: string[] }[] = [
-  { id: "kitchen", label: "Noir & Gold", description: "Negro editorial con acentos dorados (por defecto).", swatch: ["#0d0d0d", "#1a1a1a", "#c9a84c"] },
-  { id: "warm",    label: "Naranja Cálido", description: "Ámbar y rojo cálido, acogedor.",                swatch: ["#1f1410", "#f08a3c", "#ffb86b"] },
-  { id: "night",   label: "Azul Noche",     description: "Índigo profundo con acentos violeta.",          swatch: ["#0c1024", "#7b6cf6", "#a78bfa"] },
-  { id: "light",   label: "Claro Menta",    description: "Fondo claro con acentos mint, luminoso y limpio.", swatch: ["#f6f8f7", "#10b981", "#0f766e"] },
+  { id: "kitchen",  label: "Noir & Gold",   description: "Negro editorial con acentos dorados (por defecto).", swatch: ["#0d0d0d", "#1a1a1a", "#c9a84c"] },
+  { id: "mint",     label: "Noir & Menta",  description: "Negro profundo con acentos verde menta.",            swatch: ["#0d0f0e", "#161a18", "#34d399"] },
+  { id: "platinum", label: "Noir & Platino",description: "Negro con acentos plata fría y minimalista.",        swatch: ["#0c0c0d", "#17181a", "#cbd5e1"] },
+  { id: "light",    label: "Claro Menta",   description: "Fondo claro y luminoso con acentos verde menta.",    swatch: ["#f6f8f7", "#10b981", "#0f766e"] },
 ];
 
 const KEY = "lakitchen.theme";
