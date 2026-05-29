@@ -3,7 +3,6 @@ import { z } from "zod";
 import { requireUser } from "@/lib/api-auth";
 import type { DietMeal } from "@/lib/dietPlans";
 
-
 const macroSchema = z.object({
   kcal: z.number().min(0).max(20000),
   protein: z.number().min(0).max(2000),
@@ -32,7 +31,6 @@ const bodySchema = z.object({
   mode: z.enum(["day", "week"]).default("day"),
 });
 
-
 export const Route = createFileRoute("/api/generate-diet")({
   server: {
     handlers: {
@@ -42,6 +40,7 @@ export const Route = createFileRoute("/api/generate-diet")({
 
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
+
         let raw: unknown;
         try {
           raw = await request.json();
@@ -53,32 +52,38 @@ export const Route = createFileRoute("/api/generate-diet")({
           return json({ error: "Datos inválidos" }, 400);
         }
         const body = parsed.data;
-
         const isWeek = body.mode === "week";
-        const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
         const productsList = body.products
           .map((p) => `- [${p.location}] ${p.name}: ${p.quantity}${p.unit}`)
           .join("\n");
 
-        function buildSys(dayLabel?: string) {
-          return `Eres un nutricionista práctico y creativo. Crea un plan de comidas ${dayLabel ? `para ${dayLabel.toUpperCase()}` : "para HOY"} usando PRIORITARIAMENTE los productos disponibles.
+        const macrosLine = isWeek
+          ? `Objetivos diarios aproximados: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.`
+          : `Objetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.\nLo que falta hoy: ${body.remaining.kcal} kcal, P ${body.remaining.protein}g, C ${body.remaining.carbs}g, G ${body.remaining.fat}g.`;
+
+        const sys = isWeek
+          ? `Eres un nutricionista práctico. Crea un plan de comidas para los 7 DÍAS de la semana (Lunes a Domingo) usando PRIORITARIAMENTE los productos disponibles.
+
+REGLAS:
+- Maximiza ingredientes disponibles antes de proponer comprar.
+- Prioriza FRESCOS/perecederos sobre conservas o congelados.
+- Varía las recetas entre días; no repitas el mismo plato dos días seguidos.
+- 3 comidas por día (Desayuno, Comida, Cena). Total: 21 comidas.
+- Cada "time" debe ser: "Lunes — Desayuno", "Lunes — Comida", "Lunes — Cena", "Martes — Desayuno"… hasta "Domingo — Cena".
+- Cada día debe sumar aproximadamente los macros objetivo.
+- Si falta algo clave indícalo en "notes" como "te falta: ...".
+- Devuelve SOLO JSON usando la función propose_diet.`
+          : `Eres un nutricionista práctico y creativo. Crea un plan de comidas para HOY usando PRIORITARIAMENTE los productos disponibles.
 
 REGLAS:
 - Maximiza ingredientes disponibles antes de proponer comprar.
 - Prioriza FRESCOS/perecederos (verduras, frutas, carne/pescado fresco, lácteos abiertos, pan) sobre conservas o congelados.
-- Recetas reales, sencillas y equilibradas. Si falta algo clave indícalo en "notes" como "te falta: ...".
-- 3-4 comidas que sumen aproximadamente los macros objetivo.
-${dayLabel ? `- Formato "time": "${dayLabel} — Desayuno", "${dayLabel} — Comida", "${dayLabel} — Cena" (y opcional Snack).` : '- Formato "time": "Desayuno", "Comida", "Cena", "Snack".'}
+- 3-4 comidas (Desayuno, Comida, Cena, opcional Snack) que sumen aproximadamente los macros objetivo.
+- Si falta algo clave indícalo en "notes" como "te falta: ...".
 - Devuelve SOLO JSON usando la función propose_diet.`;
-        }
 
-        function buildUserPrompt(dayLabel?: string, weekVariety?: string) {
-          const macros = dayLabel
-            ? `Objetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.`
-            : `Objetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.\nLo que falta hoy: ${body.remaining.kcal} kcal, P ${body.remaining.protein}g, C ${body.remaining.carbs}g, G ${body.remaining.fat}g.`;
-          return `Productos disponibles:\n${productsList}\n\n${macros}\nPreferencias: ${body.preferences || "ninguna"}.${weekVariety ? `\n${weekVariety}` : ""}`;
-        }
+        const userPrompt = `Productos disponibles:\n${productsList || "(ninguno)"}\n\n${macrosLine}\nPreferencias: ${body.preferences || "ninguna"}.`;
 
         const tools = [
           {
@@ -104,109 +109,84 @@ ${dayLabel ? `- Formato "time": "${dayLabel} — Desayuno", "${dayLabel} — Com
                         fat: { type: "number" },
                       },
                       required: ["name", "time", "ingredients", "instructions", "kcal", "protein", "carbs", "fat"],
-                      additionalProperties: false,
                     },
                   },
                   notes: { type: "string" },
                 },
                 required: ["meals", "notes"],
-                additionalProperties: false,
               },
             },
           },
         ];
 
-        async function generateOne(sys: string, userPrompt: string): Promise<{ meals: DietMeal[]; notes: string } | { error: string; status?: number }> {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 25000);
-          let upstream: Response;
-          try {
-            upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-              signal: controller.signal,
-              body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
-                messages: [
-                  { role: "system", content: sys },
-                  { role: "user", content: userPrompt },
-                ],
-                tools,
-                tool_choice: { type: "function", function: { name: "propose_diet" } },
-              }),
-            });
-          } catch (e) {
-            clearTimeout(timeout);
-            const aborted = e instanceof Error && e.name === "AbortError";
-            return { error: aborted ? "La IA tardó demasiado" : "No se pudo contactar con la IA" };
-          }
-          clearTimeout(timeout);
-          if (!upstream.ok) {
-            return { error: `Error IA (${upstream.status})`, status: upstream.status };
-          }
-          const rawText = await upstream.text();
-          let data: { choices?: Array<{ message?: { tool_calls?: Array<{ function?: { arguments?: string } }> } }> };
-          try {
-            data = JSON.parse(rawText);
-          } catch {
-            console.error("generate-diet: upstream non-JSON", rawText.slice(0, 200));
-            return { error: "Respuesta IA inválida" };
-          }
-          const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-          if (!args) return { error: "Sin respuesta de la IA" };
-          try {
-            const parsed = JSON.parse(args) as { meals?: DietMeal[]; notes?: string };
-            if (!parsed.meals || !Array.isArray(parsed.meals) || parsed.meals.length === 0) {
-              return { error: "La IA no devolvió comidas" };
-            }
-            return { meals: parsed.meals, notes: parsed.notes ?? "" };
-          } catch {
-            return { error: "Respuesta IA no parseable" };
-          }
-        }
+        const controller = new AbortController();
+        const timeoutMs = isWeek ? 90000 : 40000;
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-        if (isWeek) {
-          // Genera los 7 días en paralelo — mucho más rápido y evita timeouts del gateway
-          const results = await Promise.all(
-            DAYS.map((day, i) => {
-              const variety = `Es el día ${i + 1} de 7 (${day}). Varía las recetas respecto a otros días; no repitas el mismo plato del día anterior.`;
-              return generateOne(buildSys(day), buildUserPrompt(day, variety));
+        let upstream: Response;
+        try {
+          upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [
+                { role: "system", content: sys },
+                { role: "user", content: userPrompt },
+              ],
+              tools,
+              tool_choice: { type: "function", function: { name: "propose_diet" } },
             }),
+          });
+        } catch (e) {
+          clearTimeout(timeout);
+          const aborted = e instanceof Error && e.name === "AbortError";
+          console.error("generate-diet: fetch failed", e);
+          return json(
+            { error: aborted ? "La IA tardó demasiado. Inténtalo de nuevo." : "No se pudo contactar con la IA." },
+            504,
           );
-          const allMeals: DietMeal[] = [];
-          const noteParts: string[] = [];
-          const errors: string[] = [];
-          results.forEach((r, i) => {
-            if ("error" in r) {
-              errors.push(`${DAYS[i]}: ${r.error}`);
-            } else {
-              allMeals.push(...r.meals);
-              if (r.notes) noteParts.push(`${DAYS[i]}: ${r.notes}`);
-            }
-          });
-          if (allMeals.length === 0) {
-            return json({ error: "No se pudo generar el plan semanal. " + errors.join("; ") }, 502);
-          }
-          return json({
-            meals: allMeals,
-            notes: errors.length ? `Algunos días fallaron (${errors.length}/7). ${noteParts.join(" · ")}` : noteParts.join(" · "),
-          });
+        }
+        clearTimeout(timeout);
+
+        const rawText = await upstream.text();
+        if (!upstream.ok) {
+          console.error("generate-diet: upstream error", upstream.status, rawText.slice(0, 500));
+          if (upstream.status === 429) return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
+          if (upstream.status === 402) return json({ error: "Sin créditos en Lovable AI. Añade fondos en Ajustes." }, 402);
+          return json({ error: `Error IA (${upstream.status})` }, 502);
         }
 
-        const single = await generateOne(buildSys(), buildUserPrompt());
-        if ("error" in single) {
-          const status = single.status === 429 ? 429 : single.status === 402 ? 402 : 502;
-          const msg =
-            single.status === 429
-              ? "Límite de uso alcanzado. Intenta más tarde."
-              : single.status === 402
-                ? "Sin créditos en Lovable AI. Añade fondos en Ajustes."
-                : single.error;
-          return json({ error: msg }, status);
+        let data: { choices?: Array<{ message?: { tool_calls?: Array<{ function?: { arguments?: string } }>; content?: string } }> };
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          console.error("generate-diet: upstream non-JSON", rawText.slice(0, 500));
+          return json({ error: "Respuesta IA inválida" }, 502);
         }
-        return json(single);
 
+        const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+        if (!args) {
+          const content = data.choices?.[0]?.message?.content ?? "";
+          console.error("generate-diet: no tool call", { content: content.slice(0, 300) });
+          return json({ error: "La IA no devolvió un plan estructurado. Inténtalo de nuevo." }, 502);
+        }
 
+        let parsedArgs: { meals?: DietMeal[]; notes?: string };
+        try {
+          parsedArgs = JSON.parse(args);
+        } catch {
+          console.error("generate-diet: args non-JSON", args.slice(0, 500));
+          return json({ error: "Respuesta IA no parseable" }, 502);
+        }
+
+        if (!parsedArgs.meals || !Array.isArray(parsedArgs.meals) || parsedArgs.meals.length === 0) {
+          console.error("generate-diet: empty meals", parsedArgs);
+          return json({ error: "La IA no devolvió comidas. Inténtalo de nuevo." }, 502);
+        }
+
+        return json({ meals: parsedArgs.meals, notes: parsedArgs.notes ?? "" });
       },
     },
   },
