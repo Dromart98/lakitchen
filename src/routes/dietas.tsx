@@ -240,19 +240,29 @@ function Diets() {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   {savedId ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-success">
-                      <Check className="h-3 w-3" /> Guardado automáticamente
+                      <Check className="h-3 w-3" /> Guardado
                     </span>
                   ) : (
-                    <span>Plan no guardado</span>
+                    <span>Sin guardar</span>
                   )}
                 </div>
-                <button
-                  onClick={copyPlan}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/60 px-3 py-1.5 text-xs font-medium hover:bg-muted"
-                >
-                  {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? "Copiado" : "Copiar texto"}
-                </button>
+                <div className="flex gap-2">
+                  {!savedId && (
+                    <button
+                      onClick={savePlan}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow"
+                    >
+                      <Check className="h-3.5 w-3.5" /> Guardar plan
+                    </button>
+                  )}
+                  <button
+                    onClick={copyPlan}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/60 px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied ? "Copiado" : "Copiar texto"}
+                  </button>
+                </div>
               </div>
               {plan.notes && (
                 <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm text-foreground/90">
