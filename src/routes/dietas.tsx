@@ -61,11 +61,13 @@ function Diets() {
   const [tab, setTab] = useState<Tab>("generate");
   const [preferences, setPreferences] = useState("");
   const [title, setTitle] = useState("");
+  const [mode, setMode] = useState<"day" | "week">("day");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<{ meals: DietMeal[]; notes: string } | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
 
   // Restore draft on mount so changing tabs doesn't lose work
   useEffect(() => {
