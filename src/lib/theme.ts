@@ -2,7 +2,7 @@
 export type ThemeId = "kitchen" | "warm" | "night" | "light";
 
 export const THEMES: { id: ThemeId; label: string; description: string; swatch: string[] }[] = [
-  { id: "kitchen", label: "Verde Kitchen", description: "Mint vibrante sobre fondo oscuro (por defecto).", swatch: ["#0a2530", "#19c39a", "#1ee8a8"] },
+  { id: "kitchen", label: "Noir & Gold", description: "Negro editorial con acentos dorados (por defecto).", swatch: ["#0d0d0d", "#1a1a1a", "#c9a84c"] },
   { id: "warm",    label: "Naranja Cálido", description: "Ámbar y rojo cálido, acogedor.",                swatch: ["#1f1410", "#f08a3c", "#ffb86b"] },
   { id: "night",   label: "Azul Noche",     description: "Índigo profundo con acentos violeta.",          swatch: ["#0c1024", "#7b6cf6", "#a78bfa"] },
   { id: "light",   label: "Claro Menta",    description: "Fondo claro con acentos mint, luminoso y limpio.", swatch: ["#f6f8f7", "#10b981", "#0f766e"] },
