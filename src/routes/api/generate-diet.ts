@@ -27,7 +27,9 @@ const bodySchema = z.object({
     .max(500)
     .optional()
     .transform((s) => (s ?? "").replace(/[\r\n\t`]+/g, " ").slice(0, 500)),
+  mode: z.enum(["day", "week"]).default("day"),
 });
+
 
 export const Route = createFileRoute("/api/generate-diet")({
   server: {
