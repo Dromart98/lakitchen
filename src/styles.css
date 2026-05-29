@@ -98,6 +98,32 @@
   --shadow-glow: 0 0 40px -10px oklch(0.78 0.18 55 / 0.45);
 }
 
+/* Tema "light" — Claro Menta */
+:root[data-theme="light"] {
+  --background: oklch(0.98 0.005 165);
+  --foreground: oklch(0.2 0.03 200);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.03 200);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.03 200);
+  --primary: oklch(0.62 0.15 165);
+  --primary-foreground: oklch(0.99 0.01 165);
+  --secondary: oklch(0.94 0.02 175);
+  --secondary-foreground: oklch(0.22 0.04 200);
+  --muted: oklch(0.95 0.015 180);
+  --muted-foreground: oklch(0.45 0.03 195);
+  --accent: oklch(0.55 0.14 175);
+  --accent-foreground: oklch(0.99 0.01 165);
+  --border: oklch(0.2 0.04 200 / 0.1);
+  --input: oklch(0.2 0.04 200 / 0.12);
+  --ring: oklch(0.62 0.15 165);
+  --gradient-primary: linear-gradient(135deg, oklch(0.62 0.15 165), oklch(0.55 0.14 175));
+  --gradient-surface: linear-gradient(180deg, oklch(0.99 0.005 165), oklch(0.96 0.01 180));
+  --gradient-hero: radial-gradient(ellipse at top, oklch(0.62 0.15 165 / 0.18), transparent 60%);
+  --shadow-glow: 0 0 40px -10px oklch(0.62 0.15 165 / 0.35);
+  --shadow-card: 0 8px 32px -12px oklch(0.2 0.04 200 / 0.15);
+}
+
 /* Tema "night" — Azul noche */
 :root[data-theme="night"] {
   --background: oklch(0.14 0.04 270);
