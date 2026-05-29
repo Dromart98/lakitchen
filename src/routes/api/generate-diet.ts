@@ -117,13 +117,16 @@ ${dayLabel ? `- Formato "time": "${dayLabel} — Desayuno", "${dayLabel} — Com
         ];
 
         async function generateOne(sys: string, userPrompt: string): Promise<{ meals: DietMeal[]; notes: string } | { error: string; status?: number }> {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 25000);
           let upstream: Response;
           try {
             upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+              signal: controller.signal,
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash-lite",
+                model: "google/gemini-2.5-flash",
                 messages: [
                   { role: "system", content: sys },
                   { role: "user", content: userPrompt },
@@ -132,9 +135,12 @@ ${dayLabel ? `- Formato "time": "${dayLabel} — Desayuno", "${dayLabel} — Com
                 tool_choice: { type: "function", function: { name: "propose_diet" } },
               }),
             });
-          } catch {
-            return { error: "No se pudo contactar con la IA" };
+          } catch (e) {
+            clearTimeout(timeout);
+            const aborted = e instanceof Error && e.name === "AbortError";
+            return { error: aborted ? "La IA tardó demasiado" : "No se pudo contactar con la IA" };
           }
+          clearTimeout(timeout);
           if (!upstream.ok) {
             return { error: `Error IA (${upstream.status})`, status: upstream.status };
           }
@@ -149,7 +155,11 @@ ${dayLabel ? `- Formato "time": "${dayLabel} — Desayuno", "${dayLabel} — Com
           const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
           if (!args) return { error: "Sin respuesta de la IA" };
           try {
-            return JSON.parse(args);
+            const parsed = JSON.parse(args) as { meals?: DietMeal[]; notes?: string };
+            if (!parsed.meals || !Array.isArray(parsed.meals) || parsed.meals.length === 0) {
+              return { error: "La IA no devolvió comidas" };
+            }
+            return { meals: parsed.meals, notes: parsed.notes ?? "" };
           } catch {
             return { error: "Respuesta IA no parseable" };
           }
