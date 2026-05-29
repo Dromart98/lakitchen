@@ -112,8 +112,10 @@ function Diets() {
           goals,
           remaining,
           preferences,
+          mode,
         }),
       });
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al generar dieta");
       setPlan(data);
