@@ -17,9 +17,13 @@ export const Route = createFileRoute("/api/estimate-meal")({
         } catch {
           return json({ error: "JSON inválido" }, 400);
         }
-        const description = (body.description ?? "").toString().trim();
-        if (!description || description.length > 2000) {
-          return json({ error: "Descripción vacía o demasiado larga" }, 400);
+        const description = (body.description ?? "")
+          .toString()
+          .replace(/[\r\n\t`]+/g, " ")
+          .trim()
+          .slice(0, 500);
+        if (!description) {
+          return json({ error: "Descripción vacía" }, 400);
         }
 
         const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
