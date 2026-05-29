@@ -5,29 +5,17 @@ import { WebhookError, verifyWebhookRequest } from '@lovable.dev/webhooks-js'
 import { createClient } from '@supabase/supabase-js'
 import { createFileRoute } from '@tanstack/react-router'
 import { SignupEmail } from '@/lib/email-templates/signup'
-import { InviteEmail } from '@/lib/email-templates/invite'
-import { MagicLinkEmail } from '@/lib/email-templates/magic-link'
 import { RecoveryEmail } from '@/lib/email-templates/recovery'
-import { EmailChangeEmail } from '@/lib/email-templates/email-change'
-import { ReauthenticationEmail } from '@/lib/email-templates/reauthentication'
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
-  invite: "You've been invited",
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
-  email_change: 'Confirm your new email',
-  reauthentication: 'Your verification code',
+  signup: 'Confirma tu email',
+  recovery: 'Restablece tu contraseña',
 }
 
-// Template mapping
+// Only signup (email confirmation) and recovery (password reset) are enabled.
 const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
   signup: SignupEmail,
-  invite: InviteEmail,
-  magiclink: MagicLinkEmail,
   recovery: RecoveryEmail,
-  email_change: EmailChangeEmail,
-  reauthentication: ReauthenticationEmail,
 }
 
 // Configuration
