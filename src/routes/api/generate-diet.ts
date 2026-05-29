@@ -192,6 +192,46 @@ REGLAS:
   },
 });
 
+function buildFallbackPlan(body: DietRequest, reason: string): { meals: DietMeal[]; notes: string } {
+  const days = body.mode === "week" ? ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] : [""];
+  const labels = ["Desayuno", "Comida", "Cena"];
+  const shares = [0.25, 0.4, 0.35];
+  const daily = body.mode === "day" && body.remaining.kcal > 100 ? body.remaining : body.goals;
+  const inventory = body.products
+    .filter((p) => p.quantity > 0)
+    .map((p) => `${p.name}${p.location ? ` (${p.location})` : ""}`);
+  const pantry = inventory.length ? inventory : ["huevos", "arroz", "verduras", "aceite de oliva", "yogur natural"];
+  const mealNames: Record<string, string[]> = {
+    Desayuno: ["Tostada proteica", "Bol de yogur", "Revuelto rápido", "Avena salada", "Desayuno mediterráneo"],
+    Comida: ["Plato completo", "Salteado de despensa", "Bowl alto en proteína", "Guiso ligero", "Ensalada templada"],
+    Cena: ["Cena ligera", "Plancha con guarnición", "Crema con proteína", "Tortilla completa", "Salteado suave"],
+  };
+
+  const meals = days.flatMap((day, dayIndex) =>
+    labels.map((label, labelIndex) => {
+      const share = shares[labelIndex];
+      const rotated = Array.from({ length: Math.min(4, pantry.length) }, (_, offset) => pantry[(dayIndex * 2 + labelIndex + offset) % pantry.length]);
+      const nameOptions = mealNames[label];
+      return {
+        time: day ? `${day} — ${label}` : label,
+        name: nameOptions[(dayIndex + labelIndex) % nameOptions.length],
+        ingredients: rotated,
+        instructions: `Combina ${rotated.join(", ")} con una cocción sencilla: plancha, hervido o salteado corto. Ajusta cantidades para acercarte al objetivo de macros y prioriza gastar primero lo fresco.`,
+        kcal: Math.max(120, Math.round(daily.kcal * share)),
+        protein: Math.max(5, Math.round(daily.protein * share)),
+        carbs: Math.max(5, Math.round(daily.carbs * share)),
+        fat: Math.max(3, Math.round(daily.fat * share)),
+      };
+    }),
+  );
+
+  const preferenceNote = body.preferences ? ` Preferencias aplicadas de forma general: ${body.preferences}.` : "";
+  return {
+    meals,
+    notes: `Plan generado en modo seguro porque ${reason} Puedes usarlo ya y regenerarlo más tarde para una versión más creativa.${preferenceNote}`,
+  };
+}
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
