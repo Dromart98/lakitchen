@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { todayKey, uid, useGoals, useMeals, useProducts } from "@/lib/store";
 import { ChefHat, Check, Copy, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
-import { authFetch } from "@/lib/auth-fetch";
 import { planToText, useDietPlans, type DietMeal, type SavedDietPlan } from "@/lib/dietPlans";
 import { planDeductions } from "@/lib/consume";
 import { createReliableDietPlan } from "@/lib/meal-generator";
@@ -104,45 +103,10 @@ function Diets() {
     setError(null);
     setPlan(null);
     setSavedId(null);
-    const localFallback = (reason: string) => createReliableDietPlan({ mode, products, goals, remaining, preferences, reason });
     try {
-      const instantPlan = localFallback(products.length === 0 ? "no hay productos en el inventario" : "plan generado al instante");
-      setPlan(instantPlan);
-
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), mode === "week" ? 6000 : 4500);
-      const res = await authFetch("/api/generate-diet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          products: products.map((p) => ({ name: p.name, location: p.location, quantity: p.quantity, unit: p.unit })),
-          goals,
-          remaining,
-          preferences,
-          mode,
-        }),
-      });
-      window.clearTimeout(timeout);
-
-      const text = await res.text();
-      let data: { error?: string; meals?: DietMeal[]; notes?: string };
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error(
-          res.ok
-            ? "Respuesta inválida del servidor. Inténtalo de nuevo."
-            : `Error del servidor (${res.status}). Inténtalo de nuevo.`,
-        );
-      }
-      if (!res.ok) throw new Error(data.error || "Error al generar dieta");
-      if (!data.meals?.length) throw new Error("El servidor no devolvió comidas.");
-      setPlan({ meals: data.meals ?? [], notes: data.notes ?? "" });
-
+      setPlan(createReliableDietPlan({ mode, products, goals, remaining, preferences }));
     } catch (e) {
-      setPlan((current) => current ?? localFallback(e instanceof Error ? e.message : "Error desconocido"));
-      setError(null);
+      setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
       setLoading(false);
     }
