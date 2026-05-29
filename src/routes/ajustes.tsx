@@ -8,8 +8,12 @@ export const Route = createFileRoute("/ajustes")({
   head: () => ({
     meta: [
       { title: "Ajustes · LaKitchen" },
-      { name: "description", content: "Personaliza la apariencia de la app." },
+      { name: "description", content: "Personaliza la apariencia de LaKitchen eligiendo entre diferentes temas y paletas de colores." },
+      { property: "og:title", content: "Ajustes · LaKitchen" },
+      { property: "og:description", content: "Elige el tema y la paleta de colores que prefieras para tu LaKitchen." },
+      { property: "og:url", content: "https://lakitchenapp.com/ajustes" },
     ],
+    links: [{ rel: "canonical", href: "https://lakitchenapp.com/ajustes" }],
   }),
   component: Settings,
 });

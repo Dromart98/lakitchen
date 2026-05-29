@@ -6,8 +6,12 @@ export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
       { title: "Nueva contraseña · LaKitchen" },
-      { name: "description", content: "Define una nueva contraseña para tu cuenta." },
+      { name: "description", content: "Define una nueva contraseña segura para tu cuenta de LaKitchen y recupera el acceso a tus datos." },
+      { property: "og:title", content: "Restablecer contraseña · LaKitchen" },
+      { property: "og:description", content: "Crea una nueva contraseña para tu cuenta de LaKitchen." },
+      { property: "og:url", content: "https://lakitchenapp.com/reset-password" },
     ],
+    links: [{ rel: "canonical", href: "https://lakitchenapp.com/reset-password" }],
   }),
   component: ResetPassword,
 });

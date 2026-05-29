@@ -13,8 +13,12 @@ export const Route = createFileRoute("/dietas")({
   head: () => ({
     meta: [
       { title: "Dietas IA · LaKitchen" },
-      { name: "description", content: "Recetas y planes generados con lo que ya tienes en casa." },
+      { name: "description", content: "Recetas y planes de comida generados por IA usando lo que ya tienes en tu despensa." },
+      { property: "og:title", content: "Dietas IA · LaKitchen" },
+      { property: "og:description", content: "Planes de comida generados con IA a partir de tu inventario y objetivos diarios." },
+      { property: "og:url", content: "https://lakitchenapp.com/dietas" },
     ],
+    links: [{ rel: "canonical", href: "https://lakitchenapp.com/dietas" }],
   }),
   component: Diets,
 });
@@ -274,7 +278,7 @@ function Diets() {
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <div>
                       <div className="text-xs uppercase tracking-widest text-primary">{m.time}</div>
-                      <h3 className="mt-0.5 font-display text-lg font-semibold">{m.name}</h3>
+                      <h2 className="mt-0.5 font-display text-lg font-semibold">{m.name}</h2>
                     </div>
                     <div className="text-xs tabular-nums text-muted-foreground">
                       <span className="text-foreground font-semibold">{Math.round(m.kcal)} kcal</span> · P{Math.round(m.protein)} · C{Math.round(m.carbs)} · G{Math.round(m.fat)}
@@ -319,6 +323,7 @@ function Diets() {
                   onClick={() => navigator.clipboard.writeText(planToText(p.title, p.notes, p.meals))}
                   className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
                   title="Copiar"
+                  aria-label={`Copiar el plan ${p.title}`}
                 >
                   <Copy className="h-4 w-4" />
                 </button>
@@ -331,6 +336,7 @@ function Diets() {
                   }}
                   className="rounded-lg p-2 text-destructive hover:bg-destructive/10"
                   title="Eliminar"
+                  aria-label={`Eliminar el plan ${p.title}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

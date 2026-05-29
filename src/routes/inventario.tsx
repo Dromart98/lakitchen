@@ -11,8 +11,12 @@ export const Route = createFileRoute("/inventario")({
   head: () => ({
     meta: [
       { title: "Inventario · LaKitchen" },
-      { name: "description", content: "Gestiona tu despensa, nevera y congelador, con alertas de stock bajo." },
+      { name: "description", content: "Gestiona tu despensa, nevera y congelador, con alertas de stock bajo y lista de la compra." },
+      { property: "og:title", content: "Inventario · LaKitchen" },
+      { property: "og:description", content: "Controla tu despensa, nevera, congelador y lista de la compra desde un único lugar." },
+      { property: "og:url", content: "https://lakitchenapp.com/inventario" },
     ],
+    links: [{ rel: "canonical", href: "https://lakitchenapp.com/inventario" }],
   }),
   component: Inventory,
 });
@@ -149,16 +153,16 @@ function ProductsView({
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => adjust(p.id, -stepFor(p))} className="rounded-lg border border-border bg-muted/50 p-2 hover:bg-muted">
+                <button onClick={() => adjust(p.id, -stepFor(p))} className="rounded-lg border border-border bg-muted/50 p-2 hover:bg-muted" aria-label={`Restar cantidad a ${p.name}`}>
                   <Minus className="h-4 w-4" />
                 </button>
                 <div className="min-w-[68px] rounded-lg bg-muted/40 px-2 py-1.5 text-center font-mono text-sm tabular-nums">
                   {p.quantity}<span className="text-xs text-muted-foreground">{p.unit}</span>
                 </div>
-                <button onClick={() => adjust(p.id, stepFor(p))} className="rounded-lg border border-border bg-muted/50 p-2 hover:bg-muted">
+                <button onClick={() => adjust(p.id, stepFor(p))} className="rounded-lg border border-border bg-muted/50 p-2 hover:bg-muted" aria-label={`Añadir cantidad a ${p.name}`}>
                   <Plus className="h-4 w-4" />
                 </button>
-                <button onClick={() => remove(p.id)} className="ml-1 rounded-lg p-2 text-destructive hover:bg-destructive/10">
+                <button onClick={() => remove(p.id)} className="ml-1 rounded-lg p-2 text-destructive hover:bg-destructive/10" aria-label={`Eliminar ${p.name} del inventario`}>
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -218,7 +222,7 @@ function ShoppingListView() {
         <ul className="space-y-2">
           {pending.map((it) => (
             <li key={it.id} className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-3 shadow-card">
-              <button onClick={() => toggleDone(it.id, true)} className="rounded-lg border border-border bg-muted/40 p-2 hover:bg-muted">
+              <button onClick={() => toggleDone(it.id, true)} className="rounded-lg border border-border bg-muted/40 p-2 hover:bg-muted" aria-label={`Marcar ${it.name} como comprado`}>
                 <Check className="h-4 w-4" />
               </button>
               <div className="flex-1 min-w-0">
@@ -230,7 +234,7 @@ function ShoppingListView() {
                 </div>
                 <div className="text-xs text-muted-foreground">{it.quantity} {it.unit}</div>
               </div>
-              <button onClick={() => remove(it.id)} className="rounded-lg p-2 text-destructive hover:bg-destructive/10">
+              <button onClick={() => remove(it.id)} className="rounded-lg p-2 text-destructive hover:bg-destructive/10" aria-label={`Eliminar ${it.name} de la lista`}>
                 <Trash2 className="h-4 w-4" />
               </button>
             </li>
@@ -247,14 +251,14 @@ function ShoppingListView() {
           <ul className="space-y-2">
             {done.map((it) => (
               <li key={it.id} className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 p-3 opacity-60">
-                <button onClick={() => toggleDone(it.id, false)} className="rounded-lg border border-border bg-muted/40 p-2">
+                <button onClick={() => toggleDone(it.id, false)} className="rounded-lg border border-border bg-muted/40 p-2" aria-label={`Desmarcar ${it.name} como comprado`}>
                   <Check className="h-4 w-4 text-primary" />
                 </button>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate line-through">{it.name}</div>
                   <div className="text-xs text-muted-foreground">{it.quantity} {it.unit}</div>
                 </div>
-                <button onClick={() => remove(it.id)} className="rounded-lg p-2 text-destructive hover:bg-destructive/10">
+                <button onClick={() => remove(it.id)} className="rounded-lg p-2 text-destructive hover:bg-destructive/10" aria-label={`Eliminar ${it.name} de la lista`}>
                   <Trash2 className="h-4 w-4" />
                 </button>
               </li>
