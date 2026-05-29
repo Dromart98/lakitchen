@@ -6,6 +6,7 @@ import { ChefHat, Check, Copy, Loader2, Plus, Sparkles, Trash2 } from "lucide-re
 import { planToText, useDietPlans, type DietMeal, type SavedDietPlan } from "@/lib/dietPlans";
 import { planDeductions } from "@/lib/consume";
 import { createReliableDietPlan } from "@/lib/meal-generator";
+import { authFetch } from "@/lib/auth-fetch";
 import { toast } from "sonner";
 
 
@@ -103,11 +104,32 @@ function Diets() {
     setError(null);
     setPlan(null);
     setSavedId(null);
+    const payload = {
+      mode,
+      products: products.map((p) => ({ name: p.name, location: p.location ?? "", quantity: p.quantity, unit: p.unit ?? "" })),
+      goals,
+      remaining,
+      preferences,
+    };
+    const ctrl = new AbortController();
+    const timeout = window.setTimeout(() => ctrl.abort(), mode === "week" ? 26000 : 14000);
     try {
-      setPlan(createReliableDietPlan({ mode, products, goals, remaining, preferences }));
+      const res = await authFetch("/api/generate-diet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = (await res.json()) as { meals: DietMeal[]; notes: string; ai?: boolean };
+      setPlan({ meals: data.meals, notes: data.notes });
+      if (data.ai === false) toast.message("Plan generado en modo seguro (IA no disponible).");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error desconocido");
+      const reason = e instanceof Error && e.name === "AbortError" ? "tiempo de espera agotado" : "fallo de red";
+      setPlan(createReliableDietPlan({ mode, products, goals, remaining, preferences, reason }));
+      toast.message(`Plan local: ${reason}.`);
     } finally {
+      window.clearTimeout(timeout);
       setLoading(false);
     }
   }
