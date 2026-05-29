@@ -111,15 +111,23 @@ function Diets() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al generar dieta");
       setPlan(data);
-      // Auto-guardar para que no se pierda al cambiar de pestaña
-      const autoTitle = title.trim() || `Plan ${new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
-      setTitle(autoTitle);
-      const saved = await save(autoTitle, data.notes ?? "", data.meals);
-      if (saved) setSavedId(saved.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function savePlan() {
+    if (!plan) return;
+    const autoTitle = title.trim() || `Plan ${new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+    setTitle(autoTitle);
+    const saved = await save(autoTitle, plan.notes ?? "", plan.meals);
+    if (saved) {
+      setSavedId(saved.id);
+      toast.success("Plan guardado");
+    } else {
+      toast.error("No se pudo guardar el plan");
     }
   }
 
@@ -232,19 +240,29 @@ function Diets() {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   {savedId ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-success">
-                      <Check className="h-3 w-3" /> Guardado automáticamente
+                      <Check className="h-3 w-3" /> Guardado
                     </span>
                   ) : (
-                    <span>Plan no guardado</span>
+                    <span>Sin guardar</span>
                   )}
                 </div>
-                <button
-                  onClick={copyPlan}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/60 px-3 py-1.5 text-xs font-medium hover:bg-muted"
-                >
-                  {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? "Copiado" : "Copiar texto"}
-                </button>
+                <div className="flex gap-2">
+                  {!savedId && (
+                    <button
+                      onClick={savePlan}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow"
+                    >
+                      <Check className="h-3.5 w-3.5" /> Guardar plan
+                    </button>
+                  )}
+                  <button
+                    onClick={copyPlan}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/60 px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied ? "Copiado" : "Copiar texto"}
+                  </button>
+                </div>
               </div>
               {plan.notes && (
                 <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm text-foreground/90">
@@ -285,7 +303,7 @@ function Diets() {
         <section className="mt-5 space-y-2">
           {plans.length === 0 && (
             <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-              Aún no tienes planes guardados. Genera uno y se guardará automáticamente.
+              Aún no tienes planes guardados. Genera un plan y pulsa "Guardar plan".
             </div>
           )}
           {plans.map((p) => (

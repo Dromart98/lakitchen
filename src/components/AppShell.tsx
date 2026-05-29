@@ -15,7 +15,7 @@ const nav = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
     applyTheme(getTheme());
@@ -55,7 +55,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
-          {user ? (
+          {authLoading ? (
+            <div className="h-7 w-20 animate-pulse rounded-lg bg-muted/40" />
+          ) : user ? (
             <button
               onClick={() => signOut()}
               title={user.email ?? "Cerrar sesión"}

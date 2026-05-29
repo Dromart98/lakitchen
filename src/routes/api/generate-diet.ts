@@ -50,11 +50,19 @@ export const Route = createFileRoute("/api/generate-diet")({
         }
         const body = parsed.data;
 
-        const sys = `Eres un nutricionista práctico. Crea un plan de comidas para HOY usando PRIORITARIAMENTE los productos disponibles del usuario. Devuelve SOLO JSON.`;
+        const sys = `Eres un nutricionista práctico y creativo. Crea un plan de comidas para HOY usando PRIORITARIAMENTE los productos disponibles del usuario.
 
-        const userPrompt = `Productos disponibles:\n${body.products
-          .map((p) => `- ${p.name} (${p.location}): ${p.quantity}${p.unit}`)
-          .join("\n")}\n\nObjetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.\nLo que falta consumir hoy: ${body.remaining.kcal} kcal, P ${body.remaining.protein}g, C ${body.remaining.carbs}g, G ${body.remaining.fat}g.\nPreferencias: ${body.preferences || "ninguna"}.\n\nGenera 3-4 comidas que sumen aproximadamente los macros restantes.`;
+REGLAS IMPORTANTES:
+- Maximiza el uso de ingredientes ya disponibles antes de proponer comprar nada.
+- PRIORIZA productos FRESCOS y perecederos que caduquen pronto: frutas, verduras, hortalizas (papa/patata, cebolla, tomate, lechuga, espinacas, zanahoria, pimiento, calabacín, ajo, frutas, hierbas frescas), carnes y pescados frescos, lácteos abiertos, pan. Úsalos primero antes que conservas, congelados o secos.
+- Productos en la NEVERA suelen ser más perecederos que los de despensa. Productos en CONGELADOR pueden esperar.
+- Sé creativo combinando lo que hay; sugiere recetas reales y sencillas. Si falta algún ingrediente clave para una receta, indícalo en "notes" como "te falta: ...".
+- Cada comida debe ser realista, equilibrada y respetar las preferencias.
+- Devuelve SOLO JSON usando la función propose_diet.`;
+
+        const userPrompt = `Productos disponibles (úsalos prioritariamente, sobre todo los frescos/perecederos de nevera):\n${body.products
+          .map((p) => `- [${p.location}] ${p.name}: ${p.quantity}${p.unit}`)
+          .join("\n")}\n\nObjetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.\nLo que falta consumir hoy: ${body.remaining.kcal} kcal, P ${body.remaining.protein}g, C ${body.remaining.carbs}g, G ${body.remaining.fat}g.\nPreferencias: ${body.preferences || "ninguna"}.\n\nGenera 3-4 comidas variadas que sumen aproximadamente los macros restantes y que aprovechen lo perecedero primero.`;
 
         const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",

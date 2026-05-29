@@ -144,3 +144,13 @@
   .shadow-card { box-shadow: var(--shadow-card); }
   .text-balance { text-wrap: balance; }
 }
+
+@layer base {
+  button, [role="button"], a {
+    transition: transform 120ms ease, opacity 120ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  }
+  button:active:not(:disabled), [role="button"]:active, a:active {
+    transform: scale(0.96);
+    opacity: 0.9;
+  }
+}
