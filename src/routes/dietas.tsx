@@ -116,9 +116,20 @@ function Diets() {
         }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: { error?: string; meals?: DietMeal[]; notes?: string };
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          res.ok
+            ? "Respuesta inválida del servidor. Inténtalo de nuevo."
+            : `Error del servidor (${res.status}). Inténtalo de nuevo.`,
+        );
+      }
       if (!res.ok) throw new Error(data.error || "Error al generar dieta");
-      setPlan(data);
+      setPlan({ meals: data.meals ?? [], notes: data.notes ?? "" });
+
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {

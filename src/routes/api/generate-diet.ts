@@ -69,69 +69,97 @@ ${isWeek ? '- Para semana: indica el día en el campo "time" con formato "Lunes 
           .join("\n")}\n\nObjetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.\n${isWeek ? `Genera un plan semanal completo respetando los objetivos diarios cada día.` : `Lo que falta consumir hoy: ${body.remaining.kcal} kcal, P ${body.remaining.protein}g, C ${body.remaining.carbs}g, G ${body.remaining.fat}g.`}\nPreferencias: ${body.preferences || "ninguna"}.`;
 
 
-        const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              { role: "system", content: sys },
-              { role: "user", content: userPrompt },
-            ],
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "propose_diet",
-                  description: "Propone un plan de comidas para el día",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      meals: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            name: { type: "string" },
-                            time: { type: "string", description: "p.ej. Desayuno, Comida, Cena, Snack" },
-                            ingredients: { type: "array", items: { type: "string" } },
-                            instructions: { type: "string" },
-                            kcal: { type: "number" },
-                            protein: { type: "number" },
-                            carbs: { type: "number" },
-                            fat: { type: "number" },
+        const model = isWeek ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash";
+
+        async function callModel() {
+          return fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: "system", content: sys },
+                { role: "user", content: userPrompt },
+              ],
+              tools: [
+                {
+                  type: "function",
+                  function: {
+                    name: "propose_diet",
+                    description: "Propone un plan de comidas",
+                    parameters: {
+                      type: "object",
+                      properties: {
+                        meals: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              name: { type: "string" },
+                              time: { type: "string", description: "p.ej. Desayuno, Comida, Cena, Snack; en semana incluye día: 'Lunes — Desayuno'" },
+                              ingredients: { type: "array", items: { type: "string" } },
+                              instructions: { type: "string" },
+                              kcal: { type: "number" },
+                              protein: { type: "number" },
+                              carbs: { type: "number" },
+                              fat: { type: "number" },
+                            },
+                            required: ["name", "time", "ingredients", "instructions", "kcal", "protein", "carbs", "fat"],
+                            additionalProperties: false,
                           },
-                          required: ["name", "time", "ingredients", "instructions", "kcal", "protein", "carbs", "fat"],
-                          additionalProperties: false,
                         },
+                        notes: { type: "string" },
                       },
-                      notes: { type: "string" },
+                      required: ["meals", "notes"],
+                      additionalProperties: false,
                     },
-                    required: ["meals", "notes"],
-                    additionalProperties: false,
                   },
                 },
-              },
-            ],
-            tool_choice: { type: "function", function: { name: "propose_diet" } },
-          }),
-        });
+              ],
+              tool_choice: { type: "function", function: { name: "propose_diet" } },
+            }),
+          });
+        }
+
+        let upstream: Response;
+        try {
+          upstream = await callModel();
+          // Reintenta una vez en caso de timeout transitorio del gateway (típico en semana)
+          if ((upstream.status === 504 || upstream.status === 502 || upstream.status === 524) && isWeek) {
+            upstream = await callModel();
+          }
+        } catch {
+          return json({ error: "No se pudo contactar con la IA. Inténtalo de nuevo." }, 502);
+        }
 
         if (!upstream.ok) {
           if (upstream.status === 429) return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
           if (upstream.status === 402) return json({ error: "Sin créditos en Lovable AI. Añade fondos en Ajustes." }, 402);
-          return json({ error: `Error IA (${upstream.status})` }, 500);
+          if (upstream.status === 504 || upstream.status === 524) {
+            return json({ error: "La IA tardó demasiado en responder. Prueba de nuevo o genera solo el día." }, 504);
+          }
+          return json({ error: `Error IA (${upstream.status})` }, 502);
         }
 
-        const data = await upstream.json();
+        // El gateway puede devolver texto plano (timeouts, errores HTML) — no asumir JSON
+        const rawText = await upstream.text();
+        let data: { choices?: Array<{ message?: { tool_calls?: Array<{ function?: { arguments?: string } }> } }> };
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          console.error("generate-diet: upstream non-JSON response", rawText.slice(0, 300));
+          return json({ error: "La IA devolvió una respuesta inválida. Inténtalo de nuevo." }, 502);
+        }
+
         const call = data.choices?.[0]?.message?.tool_calls?.[0];
-        if (!call) return json({ error: "Sin respuesta de la IA" }, 500);
+        if (!call?.function?.arguments) return json({ error: "Sin respuesta de la IA" }, 502);
         try {
           const args = JSON.parse(call.function.arguments);
           return json(args);
         } catch {
-          return json({ error: "Respuesta IA no parseable" }, 500);
+          return json({ error: "Respuesta IA no parseable" }, 502);
         }
+
       },
     },
   },
