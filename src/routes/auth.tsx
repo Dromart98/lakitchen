@@ -10,7 +10,11 @@ export const Route = createFileRoute("/auth")({
     meta: [
       { title: "Acceder · LaKitchen" },
       { name: "description", content: "Crea tu cuenta o accede para sincronizar tu despensa y macros en todos tus dispositivos." },
+      { property: "og:title", content: "Acceder a LaKitchen" },
+      { property: "og:description", content: "Inicia sesión o crea una cuenta para sincronizar tu despensa y macros." },
+      { property: "og:url", content: "https://lakitchenapp.com/auth" },
     ],
+    links: [{ rel: "canonical", href: "https://lakitchenapp.com/auth" }],
   }),
   component: AuthPage,
 });
@@ -93,12 +97,13 @@ function AuthPage() {
   return (
     <div className="min-h-screen bg-background grid place-items-center px-4 py-10">
       <div className="w-full max-w-md">
-        <Link to="/" className="flex items-center justify-center gap-2 mb-6">
+        <Link to="/" className="flex items-center justify-center gap-2 mb-6" aria-label="Ir al inicio de LaKitchen">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary shadow-glow">
             <Apple className="h-5 w-5 text-primary-foreground" />
           </div>
           <div className="font-display text-xl font-bold">LaKitchen</div>
         </Link>
+        <h1 className="sr-only">Acceder a LaKitchen</h1>
 
         <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-card">
           <div className="flex gap-1 rounded-xl bg-muted/40 p-1">

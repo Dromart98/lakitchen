@@ -12,8 +12,12 @@ export const Route = createFileRoute("/foto")({
   head: () => ({
     meta: [
       { title: "Foto · LaKitchen" },
-      { name: "description", content: "Sube una foto de tu comida y calcula calorías y macros con IA." },
+      { name: "description", content: "Sube una foto de tu comida y calcula calorías y macros con IA en LaKitchen." },
+      { property: "og:title", content: "Analiza tu comida por foto · LaKitchen" },
+      { property: "og:description", content: "Estima kcal y macros de cualquier plato subiendo una foto, todo con IA." },
+      { property: "og:url", content: "https://lakitchenapp.com/foto" },
     ],
+    links: [{ rel: "canonical", href: "https://lakitchenapp.com/foto" }],
   }),
   component: PhotoAnalyze,
 });
@@ -120,7 +124,7 @@ function PhotoAnalyze() {
         <div className="rounded-2xl border border-dashed border-border bg-card/50 p-4 shadow-card">
           <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPick} className="hidden" />
           {preview ? (
-            <img src={preview} alt="Comida" className="aspect-square w-full rounded-xl object-cover" />
+            <img src={preview} alt="Previsualización de comida subida para analizar" className="aspect-square w-full rounded-xl object-cover" />
           ) : (
             <div className="grid aspect-square place-items-center rounded-xl bg-muted/30 text-sm text-muted-foreground">
               Aún no hay imagen

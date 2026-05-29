@@ -15,8 +15,12 @@ export const Route = createFileRoute("/macros")({
   head: () => ({
     meta: [
       { title: "Macros · LaKitchen" },
-      { name: "description", content: "Registra comidas, calcula tus macros y revisa tu historial." },
+      { name: "description", content: "Registra comidas, calcula tus objetivos diarios y revisa tu historial nutricional." },
+      { property: "og:title", content: "Macros · LaKitchen" },
+      { property: "og:description", content: "Lleva el diario de macros, ajusta tus objetivos y consulta tu historial." },
+      { property: "og:url", content: "https://lakitchenapp.com/macros" },
     ],
+    links: [{ rel: "canonical", href: "https://lakitchenapp.com/macros" }],
   }),
   component: Macros,
 });
@@ -167,6 +171,7 @@ function TodayView() {
               <button
                 onClick={() => setMeals((prev) => prev.filter((x) => x.id !== m.id))}
                 className="rounded-lg p-2 text-destructive hover:bg-destructive/10"
+                aria-label={`Eliminar ${m.name} del registro de hoy`}
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -402,7 +407,7 @@ function IngredientsForm({
                 />
                 <span className="text-xs text-muted-foreground">{suffix}</span>
               </div>
-              <button type="button" onClick={() => setLines((prev) => prev.filter((_, j) => j !== i))} className="rounded-lg p-2 text-destructive hover:bg-destructive/10">
+              <button type="button" onClick={() => setLines((prev) => prev.filter((_, j) => j !== i))} className="rounded-lg p-2 text-destructive hover:bg-destructive/10" aria-label="Quitar ingrediente">
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>

@@ -8,8 +8,12 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "LaKitchen · Inicio" },
-      { name: "description", content: "Resumen diario de tus macros, inventario y alertas de stock." },
+      { name: "description", content: "Resumen diario de tus macros, inventario y alertas de stock bajo en tu cocina." },
+      { property: "og:title", content: "LaKitchen · Resumen del día" },
+      { property: "og:description", content: "Tu panel diario de macros, inventario y alertas de stock en LaKitchen." },
+      { property: "og:url", content: "https://lakitchenapp.com/" },
     ],
+    links: [{ rel: "canonical", href: "https://lakitchenapp.com/" }],
   }),
   component: Home,
 });
@@ -41,10 +45,10 @@ function Home() {
           <div>
             <div className="text-xs uppercase tracking-widest text-primary">Hoy</div>
             <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">
-              {Math.round(totals.kcal)}<span className="text-muted-foreground"> / {goals.kcal} kcal</span>
+              Resumen de mis macros y despensa
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {todays.length} comida{todays.length === 1 ? "" : "s"} registrada{todays.length === 1 ? "" : "s"}
+            <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+              {Math.round(totals.kcal)} / {goals.kcal} kcal · {todays.length} comida{todays.length === 1 ? "" : "s"} registrada{todays.length === 1 ? "" : "s"}
             </p>
           </div>
           <Link
