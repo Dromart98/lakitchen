@@ -103,10 +103,19 @@ function Diets() {
     setError(null);
     setPlan(null);
     setSavedId(null);
+    const localFallback = (reason: string) => buildLocalDietPlan(mode, products, goals, remaining, preferences, reason);
     try {
+      if (products.length === 0) {
+        setPlan(localFallback("no hay productos en el inventario"));
+        return;
+      }
+
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), mode === "week" ? 12000 : 8000);
       const res = await authFetch("/api/generate-diet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           products: products.map((p) => ({ name: p.name, location: p.location, quantity: p.quantity, unit: p.unit })),
           goals,
@@ -115,6 +124,7 @@ function Diets() {
           mode,
         }),
       });
+      window.clearTimeout(timeout);
 
       const text = await res.text();
       let data: { error?: string; meals?: DietMeal[]; notes?: string };
@@ -132,7 +142,7 @@ function Diets() {
       setPlan({ meals: data.meals ?? [], notes: data.notes ?? "" });
 
     } catch (e) {
-      setPlan(buildLocalDietPlan(mode, products, goals, remaining, preferences, e instanceof Error ? e.message : "Error desconocido"));
+      setPlan(localFallback(e instanceof Error ? e.message : "Error desconocido"));
       setError(null);
     } finally {
       setLoading(false);
@@ -264,7 +274,7 @@ function Diets() {
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={generate}
-                disabled={loading || products.length === 0}
+                disabled={loading}
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -281,7 +291,7 @@ function Diets() {
               )}
             </div>
             {products.length === 0 && (
-              <p className="mt-2 text-xs text-warning">Añade productos a tu inventario primero.</p>
+              <p className="mt-2 text-xs text-warning">Sin inventario: generaré un plan base y podrás afinarlo añadiendo productos.</p>
             )}
             {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
           </div>
