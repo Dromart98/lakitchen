@@ -255,8 +255,9 @@ function Diets() {
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {loading ? "Generando…" : "Generar plan"}
+                {loading ? "Generando…" : mode === "week" ? "Generar plan semanal" : "Generar plan"}
               </button>
+
               {plan && (
                 <button
                   onClick={newPlan}
