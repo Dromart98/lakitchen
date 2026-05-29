@@ -264,7 +264,7 @@ function Diets() {
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={generate}
-                disabled={loading || products.length === 0}
+                disabled={loading}
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -281,7 +281,7 @@ function Diets() {
               )}
             </div>
             {products.length === 0 && (
-              <p className="mt-2 text-xs text-warning">Añade productos a tu inventario primero.</p>
+              <p className="mt-2 text-xs text-warning">Sin inventario: generaré un plan base y podrás afinarlo añadiendo productos.</p>
             )}
             {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
           </div>
