@@ -6,6 +6,7 @@ import { ChefHat, Check, Copy, Loader2, Plus, Sparkles, Trash2 } from "lucide-re
 import { planToText, useDietPlans, type DietMeal, type SavedDietPlan } from "@/lib/dietPlans";
 import { planDeductions } from "@/lib/consume";
 import { createReliableDietPlan } from "@/lib/meal-generator";
+import { authFetch } from "@/lib/auth-fetch";
 import { toast } from "sonner";
 
 
