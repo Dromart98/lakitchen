@@ -123,7 +123,7 @@ REGLAS:
         ];
 
         const controller = new AbortController();
-        const timeoutMs = isWeek ? 90000 : 40000;
+        const timeoutMs = isWeek ? 22000 : 14000;
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
         let upstream: Response;
@@ -133,7 +133,7 @@ REGLAS:
             headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
             signal: controller.signal,
             body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
+              model: "google/gemini-3-flash-preview",
               messages: [
                 { role: "system", content: sys },
                 { role: "user", content: userPrompt },
@@ -158,7 +158,7 @@ REGLAS:
           return fallbackResponse(`Error IA (${upstream.status}).`);
         }
 
-        let data: { choices?: Array<{ message?: { tool_calls?: Array<{ function?: { arguments?: string } }>; content?: string } }> };
+        let data: { choices?: Array<{ message?: { tool_calls?: Array<{ function?: { arguments?: unknown } }>; content?: string } }> };
         try {
           data = JSON.parse(rawText);
         } catch {
@@ -175,9 +175,9 @@ REGLAS:
 
         let parsedArgs: { meals?: DietMeal[]; notes?: string };
         try {
-          parsedArgs = JSON.parse(args);
+          parsedArgs = typeof args === "string" ? JSON.parse(args) : (args as { meals?: DietMeal[]; notes?: string });
         } catch {
-          console.error("generate-diet: args non-JSON", args.slice(0, 500));
+          console.error("generate-diet: args non-JSON", String(args).slice(0, 500));
           return fallbackResponse("La IA devolvió datos no parseables.");
         }
 
