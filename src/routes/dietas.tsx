@@ -111,15 +111,23 @@ function Diets() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al generar dieta");
       setPlan(data);
-      // Auto-guardar para que no se pierda al cambiar de pestaña
-      const autoTitle = title.trim() || `Plan ${new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
-      setTitle(autoTitle);
-      const saved = await save(autoTitle, data.notes ?? "", data.meals);
-      if (saved) setSavedId(saved.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function savePlan() {
+    if (!plan) return;
+    const autoTitle = title.trim() || `Plan ${new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+    setTitle(autoTitle);
+    const saved = await save(autoTitle, plan.notes ?? "", plan.meals);
+    if (saved) {
+      setSavedId(saved.id);
+      toast.success("Plan guardado");
+    } else {
+      toast.error("No se pudo guardar el plan");
     }
   }
 
