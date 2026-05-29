@@ -61,11 +61,13 @@ function Diets() {
   const [tab, setTab] = useState<Tab>("generate");
   const [preferences, setPreferences] = useState("");
   const [title, setTitle] = useState("");
+  const [mode, setMode] = useState<"day" | "week">("day");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<{ meals: DietMeal[]; notes: string } | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
 
   // Restore draft on mount so changing tabs doesn't lose work
   useEffect(() => {
@@ -110,8 +112,10 @@ function Diets() {
           goals,
           remaining,
           preferences,
+          mode,
         }),
       });
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al generar dieta");
       setPlan(data);
@@ -200,6 +204,35 @@ function Diets() {
       {tab === "generate" && (
         <>
           <div className="mt-5 rounded-2xl border border-border/60 bg-card p-5 shadow-card">
+            <div className="mb-4">
+              <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Alcance del plan</div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMode("day")}
+                  className={
+                    "rounded-xl border px-3 py-2.5 text-sm font-semibold transition " +
+                    (mode === "day"
+                      ? "border-primary bg-primary/15 text-primary shadow-glow"
+                      : "border-border bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground")
+                  }
+                >
+                  Solo hoy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("week")}
+                  className={
+                    "rounded-xl border px-3 py-2.5 text-sm font-semibold transition " +
+                    (mode === "week"
+                      ? "border-primary bg-primary/15 text-primary shadow-glow"
+                      : "border-border bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground")
+                  }
+                >
+                  Toda la semana
+                </button>
+              </div>
+            </div>
             <label className="text-xs font-medium text-muted-foreground">Título (opcional)</label>
             <input
               value={title}
@@ -208,6 +241,7 @@ function Diets() {
               className="mt-1 mb-3 w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
             <label className="text-xs font-medium text-muted-foreground">Preferencias o restricciones (opcional)</label>
+
             <input
               value={preferences}
               onChange={(e) => setPreferences(e.target.value)}
@@ -221,8 +255,9 @@ function Diets() {
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {loading ? "Generando…" : "Generar plan"}
+                {loading ? "Generando…" : mode === "week" ? "Generar plan semanal" : "Generar plan"}
               </button>
+
               {plan && (
                 <button
                   onClick={newPlan}
