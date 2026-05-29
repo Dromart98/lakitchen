@@ -74,6 +74,18 @@ function AuthPage() {
     }
   }
 
+  async function apple() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await lovable.auth.signInWithOAuth("apple", { redirect_uri: window.location.origin });
+      if (res && "error" in res && res.error) throw res.error;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error con Apple");
+      setBusy(false);
+    }
+  }
+
   async function forgot() {
     if (!email) {
       setError("Escribe tu email primero.");
@@ -127,6 +139,14 @@ function AuthPage() {
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background/60 px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-50"
           >
             <GoogleIcon /> Continuar con Google
+          </button>
+
+          <button
+            onClick={apple}
+            disabled={busy}
+            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-black/90 disabled:opacity-50"
+          >
+            <Apple className="h-4 w-4" /> Continuar con Apple
           </button>
 
           <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
