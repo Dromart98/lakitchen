@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { todayKey, uid, useGoals, useMeals, useProducts } from "@/lib/store";
 import { ChefHat, Check, Copy, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
-import { authFetch } from "@/lib/auth-fetch";
 import { planToText, useDietPlans, type DietMeal, type SavedDietPlan } from "@/lib/dietPlans";
 import { planDeductions } from "@/lib/consume";
+import { createReliableDietPlan } from "@/lib/meal-generator";
 import { toast } from "sonner";
 
 
@@ -103,47 +103,10 @@ function Diets() {
     setError(null);
     setPlan(null);
     setSavedId(null);
-    const localFallback = (reason: string) => buildLocalDietPlan(mode, products, goals, remaining, preferences, reason);
     try {
-      if (products.length === 0) {
-        setPlan(localFallback("no hay productos en el inventario"));
-        return;
-      }
-
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), mode === "week" ? 12000 : 8000);
-      const res = await authFetch("/api/generate-diet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          products: products.map((p) => ({ name: p.name, location: p.location, quantity: p.quantity, unit: p.unit })),
-          goals,
-          remaining,
-          preferences,
-          mode,
-        }),
-      });
-      window.clearTimeout(timeout);
-
-      const text = await res.text();
-      let data: { error?: string; meals?: DietMeal[]; notes?: string };
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error(
-          res.ok
-            ? "Respuesta inválida del servidor. Inténtalo de nuevo."
-            : `Error del servidor (${res.status}). Inténtalo de nuevo.`,
-        );
-      }
-      if (!res.ok) throw new Error(data.error || "Error al generar dieta");
-      if (!data.meals?.length) throw new Error("El servidor no devolvió comidas.");
-      setPlan({ meals: data.meals ?? [], notes: data.notes ?? "" });
-
+      setPlan(createReliableDietPlan({ mode, products, goals, remaining, preferences }));
     } catch (e) {
-      setPlan(localFallback(e instanceof Error ? e.message : "Error desconocido"));
-      setError(null);
+      setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
       setLoading(false);
     }
@@ -405,42 +368,6 @@ function Diets() {
       )}
     </AppShell>
   );
-}
-
-function buildLocalDietPlan(
-  mode: "day" | "week",
-  products: Array<{ name: string; location?: string; quantity: number; unit: string }>,
-  goals: { kcal: number; protein: number; carbs: number; fat: number },
-  remaining: { kcal: number; protein: number; carbs: number; fat: number },
-  preferences: string,
-  reason: string,
-): { meals: DietMeal[]; notes: string } {
-  const days = mode === "week" ? ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] : [""];
-  const labels = ["Desayuno", "Comida", "Cena"];
-  const shares = [0.25, 0.4, 0.35];
-  const daily = mode === "day" && remaining.kcal > 100 ? remaining : goals;
-  const pantry = products.filter((p) => p.quantity > 0).map((p) => `${p.name}${p.location ? ` (${p.location})` : ""}`);
-  const base = pantry.length ? pantry : ["huevos", "arroz", "verduras", "aceite de oliva"];
-
-  return {
-    notes: `Plan generado en modo seguro porque falló la generación IA: ${reason}. Puedes usarlo ya o regenerarlo después.${preferences ? ` Preferencias: ${preferences}.` : ""}`,
-    meals: days.flatMap((day, dayIndex) =>
-      labels.map((label, labelIndex) => {
-        const ingredients = Array.from({ length: Math.min(4, base.length) }, (_, offset) => base[(dayIndex * 2 + labelIndex + offset) % base.length]);
-        const share = shares[labelIndex];
-        return {
-          time: day ? `${day} — ${label}` : label,
-          name: `${label} de despensa`,
-          ingredients,
-          instructions: `Prepara ${ingredients.join(", ")} con una cocción simple y ajusta cantidades para aproximarte a tus macros. Prioriza consumir primero los frescos o abiertos.`,
-          kcal: Math.max(120, Math.round(daily.kcal * share)),
-          protein: Math.max(5, Math.round(daily.protein * share)),
-          carbs: Math.max(5, Math.round(daily.carbs * share)),
-          fat: Math.max(3, Math.round(daily.fat * share)),
-        };
-      }),
-    ),
-  };
 }
 
 function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
