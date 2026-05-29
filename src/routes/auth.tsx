@@ -74,6 +74,18 @@ function AuthPage() {
     }
   }
 
+  async function apple() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await lovable.auth.signInWithOAuth("apple", { redirect_uri: window.location.origin });
+      if (res && "error" in res && res.error) throw res.error;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error con Apple");
+      setBusy(false);
+    }
+  }
+
   async function forgot() {
     if (!email) {
       setError("Escribe tu email primero.");
