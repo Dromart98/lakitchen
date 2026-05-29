@@ -103,10 +103,19 @@ function Diets() {
     setError(null);
     setPlan(null);
     setSavedId(null);
+    const localFallback = (reason: string) => buildLocalDietPlan(mode, products, goals, remaining, preferences, reason);
     try {
+      if (products.length === 0) {
+        setPlan(localFallback("no hay productos en el inventario"));
+        return;
+      }
+
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), mode === "week" ? 12000 : 8000);
       const res = await authFetch("/api/generate-diet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           products: products.map((p) => ({ name: p.name, location: p.location, quantity: p.quantity, unit: p.unit })),
           goals,
@@ -115,6 +124,7 @@ function Diets() {
           mode,
         }),
       });
+      window.clearTimeout(timeout);
 
       const text = await res.text();
       let data: { error?: string; meals?: DietMeal[]; notes?: string };
@@ -132,7 +142,7 @@ function Diets() {
       setPlan({ meals: data.meals ?? [], notes: data.notes ?? "" });
 
     } catch (e) {
-      setPlan(buildLocalDietPlan(mode, products, goals, remaining, preferences, e instanceof Error ? e.message : "Error desconocido"));
+      setPlan(localFallback(e instanceof Error ? e.message : "Error desconocido"));
       setError(null);
     } finally {
       setLoading(false);
