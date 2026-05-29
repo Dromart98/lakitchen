@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { requireUser } from "@/lib/api-auth";
+import type { DietMeal } from "@/lib/dietPlans";
+
 
 const macroSchema = z.object({
   kcal: z.number().min(0).max(20000),
