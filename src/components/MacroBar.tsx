@@ -16,16 +16,15 @@ export function MacroBar({
   const pct = goal > 0 ? Math.min(100, (value / goal) * 100) : 0;
   const remaining = Math.max(0, goal - value);
   return (
-    <div className="space-y-2">
-      <div className="flex items-baseline justify-between text-xs">
-        <span className="font-semibold uppercase tracking-[0.15em] text-foreground">{label}</span>
-        <span className="tabular-nums text-primary">
-          <span className="font-bold">{Math.round(value)}g</span>
-          <span className="opacity-50"> / {goal}{unit}</span>
-          <span className="ml-1 text-[10px] opacity-50">· faltan {Math.round(remaining)}{unit}</span>
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between text-sm">
+        <span className="font-medium">{label}</span>
+        <span className="tabular-nums text-muted-foreground">
+          <span className="text-foreground font-semibold">{Math.round(value)}</span> / {goal}
+          {unit} <span className="text-xs">· faltan {Math.round(remaining)}{unit}</span>
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+      <div className="h-2.5 overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${pct}%`, background: `var(--${colorVar})` }}
@@ -37,10 +36,10 @@ export function MacroBar({
 
 export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
-    <div className="bg-background p-5 text-center first:border-r last:border-l border-primary/15">
-      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/70">{label}</div>
-      <div className="mt-2 font-display text-2xl font-bold tracking-tight text-foreground">{value}</div>
-      {hint && <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">{hint}</div>}
+    <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 font-display text-2xl font-bold tracking-tight">{value}</div>
+      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
     </div>
   );
 }

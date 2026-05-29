@@ -37,45 +37,36 @@ function Home() {
 
   const lowStock = products.filter((p) => p.quantity <= p.minStock);
 
-  const dateLabel = new Date().toLocaleDateString("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
   return (
     <AppShell>
-      <section className="relative overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-b from-card to-background p-6 shadow-card md:p-10">
-        <div className="absolute inset-0 -z-10 bg-gradient-hero opacity-90" />
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-              {dateLabel}
-            </div>
-            <h1 className="mt-2 font-display text-3xl font-bold leading-[1.05] tracking-tight text-foreground md:text-5xl">
-              Resumen de mis<br />macros y despensa
+      <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card p-6 shadow-card md:p-8">
+        <div className="absolute inset-0 -z-10 bg-gradient-hero opacity-80" />
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-primary">Hoy</div>
+            <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">
+              Resumen de mis macros y despensa
             </h1>
-            <p className="mt-3 text-sm font-medium text-muted-foreground tabular-nums">
+            <p className="mt-1 text-sm text-muted-foreground tabular-nums">
               {Math.round(totals.kcal)} / {goals.kcal} kcal · {todays.length} comida{todays.length === 1 ? "" : "s"} registrada{todays.length === 1 ? "" : "s"}
             </p>
           </div>
           <Link
             to="/foto"
-            aria-label="Escanear comida"
-            className="shrink-0 rounded-2xl bg-gradient-primary p-4 text-primary-foreground shadow-glow transition hover:opacity-90"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90"
           >
-            <Camera className="h-6 w-6" />
+            <Camera className="h-4 w-4" /> Escanear comida
           </Link>
         </div>
 
-        <div className="mt-8 space-y-5">
+        <div className="mt-6 space-y-3">
           <MacroBar label="Proteína" value={totals.protein} goal={goals.protein} colorVar="protein" />
           <MacroBar label="Carbohidratos" value={totals.carbs} goal={goals.carbs} colorVar="carbs" />
           <MacroBar label="Grasas" value={totals.fat} goal={goals.fat} colorVar="fat" />
         </div>
       </section>
 
-      <section className="mt-6 grid grid-cols-3 overflow-hidden rounded-3xl border border-primary/15 bg-primary/10">
+      <section className="mt-6 grid gap-4 sm:grid-cols-3">
         <Stat label="Productos" value={products.length} hint="en stock" />
         <Stat
           label="Stock bajo"

@@ -3,10 +3,9 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { todayKey, uid, useGoals, useMeals, useProducts } from "@/lib/store";
 import { ChefHat, Check, Copy, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
 import { planToText, useDietPlans, type DietMeal, type SavedDietPlan } from "@/lib/dietPlans";
 import { planDeductions } from "@/lib/consume";
-import { createReliableDietPlan } from "@/lib/meal-generator";
-import { authFetch } from "@/lib/auth-fetch";
 import { toast } from "sonner";
 
 
@@ -62,13 +61,11 @@ function Diets() {
   const [tab, setTab] = useState<Tab>("generate");
   const [preferences, setPreferences] = useState("");
   const [title, setTitle] = useState("");
-  const [mode, setMode] = useState<"day" | "week">("day");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<{ meals: DietMeal[]; notes: string } | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
 
   // Restore draft on mount so changing tabs doesn't lose work
   useEffect(() => {
@@ -104,32 +101,23 @@ function Diets() {
     setError(null);
     setPlan(null);
     setSavedId(null);
-    const payload = {
-      mode,
-      products: products.map((p) => ({ name: p.name, location: p.location ?? "", quantity: p.quantity, unit: p.unit ?? "" })),
-      goals,
-      remaining,
-      preferences,
-    };
-    const ctrl = new AbortController();
-    const timeout = window.setTimeout(() => ctrl.abort(), mode === "week" ? 26000 : 14000);
     try {
       const res = await authFetch("/api/generate-diet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: ctrl.signal,
+        body: JSON.stringify({
+          products: products.map((p) => ({ name: p.name, location: p.location, quantity: p.quantity, unit: p.unit })),
+          goals,
+          remaining,
+          preferences,
+        }),
       });
-      if (!res.ok) throw new Error(`status ${res.status}`);
-      const data = (await res.json()) as { meals: DietMeal[]; notes: string; ai?: boolean };
-      setPlan({ meals: data.meals, notes: data.notes });
-      if (data.ai === false) toast.message("Plan generado en modo seguro (IA no disponible).");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al generar dieta");
+      setPlan(data);
     } catch (e) {
-      const reason = e instanceof Error && e.name === "AbortError" ? "tiempo de espera agotado" : "fallo de red";
-      setPlan(createReliableDietPlan({ mode, products, goals, remaining, preferences, reason }));
-      toast.message(`Plan local: ${reason}.`);
+      setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
-      window.clearTimeout(timeout);
       setLoading(false);
     }
   }
@@ -212,35 +200,6 @@ function Diets() {
       {tab === "generate" && (
         <>
           <div className="mt-5 rounded-2xl border border-border/60 bg-card p-5 shadow-card">
-            <div className="mb-4">
-              <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Alcance del plan</div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setMode("day")}
-                  className={
-                    "rounded-xl border px-3 py-2.5 text-sm font-semibold transition " +
-                    (mode === "day"
-                      ? "border-primary bg-primary/15 text-primary shadow-glow"
-                      : "border-border bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground")
-                  }
-                >
-                  Solo hoy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("week")}
-                  className={
-                    "rounded-xl border px-3 py-2.5 text-sm font-semibold transition " +
-                    (mode === "week"
-                      ? "border-primary bg-primary/15 text-primary shadow-glow"
-                      : "border-border bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground")
-                  }
-                >
-                  Toda la semana
-                </button>
-              </div>
-            </div>
             <label className="text-xs font-medium text-muted-foreground">Título (opcional)</label>
             <input
               value={title}
@@ -249,7 +208,6 @@ function Diets() {
               className="mt-1 mb-3 w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
             <label className="text-xs font-medium text-muted-foreground">Preferencias o restricciones (opcional)</label>
-
             <input
               value={preferences}
               onChange={(e) => setPreferences(e.target.value)}
@@ -259,13 +217,12 @@ function Diets() {
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={generate}
-                disabled={loading}
+                disabled={loading || products.length === 0}
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {loading ? "Generando…" : mode === "week" ? "Generar plan semanal" : "Generar plan"}
+                {loading ? "Generando…" : "Generar plan"}
               </button>
-
               {plan && (
                 <button
                   onClick={newPlan}
@@ -276,7 +233,7 @@ function Diets() {
               )}
             </div>
             {products.length === 0 && (
-              <p className="mt-2 text-xs text-warning">Sin inventario: generaré un plan base y podrás afinarlo añadiendo productos.</p>
+              <p className="mt-2 text-xs text-warning">Añade productos a tu inventario primero.</p>
             )}
             {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
           </div>

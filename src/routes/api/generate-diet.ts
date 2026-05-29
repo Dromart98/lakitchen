@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { requireUser } from "@/lib/api-auth";
-import { createReliableDietPlan, type GeneratedDietMeal } from "@/lib/meal-generator";
 
 const macroSchema = z.object({
   kcal: z.number().min(0).max(20000),
@@ -28,7 +27,6 @@ const bodySchema = z.object({
     .max(500)
     .optional()
     .transform((s) => (s ?? "").replace(/[\r\n\t`]+/g, " ").slice(0, 500)),
-  mode: z.enum(["day", "week"]).default("day"),
 });
 
 export const Route = createFileRoute("/api/generate-diet")({
@@ -38,6 +36,8 @@ export const Route = createFileRoute("/api/generate-diet")({
         const auth = await requireUser(request);
         if (auth instanceof Response) return auth;
 
+        const key = process.env.LOVABLE_API_KEY;
+        if (!key) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
         let raw: unknown;
         try {
           raw = await request.json();
@@ -45,127 +45,92 @@ export const Route = createFileRoute("/api/generate-diet")({
           return json({ error: "JSON inválido" }, 400);
         }
         const parsed = bodySchema.safeParse(raw);
-        if (!parsed.success) return json({ error: "Datos inválidos" }, 400);
-
-        const body = parsed.data;
-        // Always build a deterministic base (correct macros + inventory aware).
-        const base = createReliableDietPlan(body);
-
-        const apiKey = process.env.LOVABLE_API_KEY;
-        if (!apiKey) return json({ ...base, ai: false });
-
-        try {
-          const enhanced = await enhanceWithAI(base.meals, body.preferences, apiKey, body.mode);
-          if (enhanced) {
-            const merged = base.meals.map((m, i) => ({
-              ...m,
-              name: enhanced[i]?.name?.trim() || m.name,
-              instructions: enhanced[i]?.instructions?.trim() || m.instructions,
-            }));
-            return json({
-              meals: merged,
-              notes: "Plan generado con IA sobre tu inventario; macros calculados localmente para garantizar precisión.",
-              ai: true,
-            });
-          }
-        } catch (err) {
-          console.error("AI enhance failed:", err);
+        if (!parsed.success) {
+          return json({ error: "Datos inválidos" }, 400);
         }
-        return json({ ...base, ai: false });
+        const body = parsed.data;
+
+        const sys = `Eres un nutricionista práctico y creativo. Crea un plan de comidas para HOY usando PRIORITARIAMENTE los productos disponibles del usuario.
+
+REGLAS IMPORTANTES:
+- Maximiza el uso de ingredientes ya disponibles antes de proponer comprar nada.
+- PRIORIZA productos FRESCOS y perecederos que caduquen pronto: frutas, verduras, hortalizas (papa/patata, cebolla, tomate, lechuga, espinacas, zanahoria, pimiento, calabacín, ajo, frutas, hierbas frescas), carnes y pescados frescos, lácteos abiertos, pan. Úsalos primero antes que conservas, congelados o secos.
+- Productos en la NEVERA suelen ser más perecederos que los de despensa. Productos en CONGELADOR pueden esperar.
+- Sé creativo combinando lo que hay; sugiere recetas reales y sencillas. Si falta algún ingrediente clave para una receta, indícalo en "notes" como "te falta: ...".
+- Cada comida debe ser realista, equilibrada y respetar las preferencias.
+- Devuelve SOLO JSON usando la función propose_diet.`;
+
+        const userPrompt = `Productos disponibles (úsalos prioritariamente, sobre todo los frescos/perecederos de nevera):\n${body.products
+          .map((p) => `- [${p.location}] ${p.name}: ${p.quantity}${p.unit}`)
+          .join("\n")}\n\nObjetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.\nLo que falta consumir hoy: ${body.remaining.kcal} kcal, P ${body.remaining.protein}g, C ${body.remaining.carbs}g, G ${body.remaining.fat}g.\nPreferencias: ${body.preferences || "ninguna"}.\n\nGenera 3-4 comidas variadas que sumen aproximadamente los macros restantes y que aprovechen lo perecedero primero.`;
+
+        const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: sys },
+              { role: "user", content: userPrompt },
+            ],
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "propose_diet",
+                  description: "Propone un plan de comidas para el día",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      meals: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: { type: "string" },
+                            time: { type: "string", description: "p.ej. Desayuno, Comida, Cena, Snack" },
+                            ingredients: { type: "array", items: { type: "string" } },
+                            instructions: { type: "string" },
+                            kcal: { type: "number" },
+                            protein: { type: "number" },
+                            carbs: { type: "number" },
+                            fat: { type: "number" },
+                          },
+                          required: ["name", "time", "ingredients", "instructions", "kcal", "protein", "carbs", "fat"],
+                          additionalProperties: false,
+                        },
+                      },
+                      notes: { type: "string" },
+                    },
+                    required: ["meals", "notes"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+            ],
+            tool_choice: { type: "function", function: { name: "propose_diet" } },
+          }),
+        });
+
+        if (!upstream.ok) {
+          if (upstream.status === 429) return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
+          if (upstream.status === 402) return json({ error: "Sin créditos en Lovable AI. Añade fondos en Ajustes." }, 402);
+          return json({ error: `Error IA (${upstream.status})` }, 500);
+        }
+
+        const data = await upstream.json();
+        const call = data.choices?.[0]?.message?.tool_calls?.[0];
+        if (!call) return json({ error: "Sin respuesta de la IA" }, 500);
+        try {
+          const args = JSON.parse(call.function.arguments);
+          return json(args);
+        } catch {
+          return json({ error: "Respuesta IA no parseable" }, 500);
+        }
       },
     },
   },
 });
-
-async function enhanceWithAI(
-  meals: GeneratedDietMeal[],
-  preferences: string,
-  apiKey: string,
-  mode: "day" | "week",
-): Promise<{ name: string; instructions: string }[] | null> {
-  const skeleton = meals.map((m, i) => ({
-    i,
-    slot: m.time,
-    ingredientes: m.ingredients,
-    kcal: m.kcal,
-    proteina_g: m.protein,
-    carbs_g: m.carbs,
-    grasas_g: m.fat,
-  }));
-
-  const sys =
-    "Eres un nutricionista y cocinero. Mejoras nombres e instrucciones de comidas SIN cambiar ingredientes ni macros. Respondes solo con la herramienta provista.";
-  const user = `Mejora estas ${meals.length} comidas (${mode === "week" ? "semana" : "día"}). Preferencias: ${preferences || "ninguna"}. Para cada item devuelve un nombre apetecible (max 60 chars) y unas instrucciones claras de 2-3 frases. Mantén el orden y el índice 'i'. Comidas:\n${JSON.stringify(skeleton)}`;
-
-  const ctrl = new AbortController();
-  const timeoutMs = mode === "week" ? 22000 : 12000;
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-
-  try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      signal: ctrl.signal,
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "openai/gpt-5-mini",
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: user },
-        ],
-        tool_choice: { type: "function", function: { name: "return_meals" } },
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "return_meals",
-              description: "Devuelve nombres e instrucciones mejorados.",
-              parameters: {
-                type: "object",
-                properties: {
-                  meals: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        i: { type: "number" },
-                        name: { type: "string" },
-                        instructions: { type: "string" },
-                      },
-                      required: ["i", "name", "instructions"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["meals"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-      }),
-    });
-    if (!res.ok) {
-      console.error("AI gateway status:", res.status);
-      return null;
-    }
-    const data = await res.json();
-    const call = data?.choices?.[0]?.message?.tool_calls?.[0];
-    if (!call) return null;
-    const argsRaw = call.function?.arguments;
-    const args = typeof argsRaw === "string" ? JSON.parse(argsRaw) : argsRaw;
-    const list = args?.meals;
-    if (!Array.isArray(list)) return null;
-    const out: { name: string; instructions: string }[] = new Array(meals.length).fill(null).map(() => ({ name: "", instructions: "" }));
-    for (const item of list) {
-      if (typeof item?.i === "number" && item.i >= 0 && item.i < meals.length) {
-        out[item.i] = { name: String(item.name ?? ""), instructions: String(item.instructions ?? "") };
-      }
-    }
-    return out;
-  } finally {
-    clearTimeout(t);
-  }
-}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
