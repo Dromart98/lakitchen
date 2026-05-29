@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGenerateDietRouteImport } from './routes/api/generate-diet'
 import { Route as ApiEstimateMealRouteImport } from './routes/api/estimate-meal'
 import { Route as ApiAnalyzeMealRouteImport } from './routes/api/analyze-meal'
+import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -76,6 +77,12 @@ const ApiAnalyzeMealRoute = ApiAnalyzeMealRouteImport.update({
   path: '/api/analyze-meal',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LovableEmailQueueProcessRoute =
+  LovableEmailQueueProcessRouteImport.update({
+    id: '/lovable/email/queue/process',
+    path: '/lovable/email/queue/process',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/api/analyze-meal': typeof ApiAnalyzeMealRoute
   '/api/estimate-meal': typeof ApiEstimateMealRoute
   '/api/generate-diet': typeof ApiGenerateDietRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +110,7 @@ export interface FileRoutesByTo {
   '/api/analyze-meal': typeof ApiAnalyzeMealRoute
   '/api/estimate-meal': typeof ApiEstimateMealRoute
   '/api/generate-diet': typeof ApiGenerateDietRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +125,7 @@ export interface FileRoutesById {
   '/api/analyze-meal': typeof ApiAnalyzeMealRoute
   '/api/estimate-meal': typeof ApiEstimateMealRoute
   '/api/generate-diet': typeof ApiGenerateDietRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/api/analyze-meal'
     | '/api/estimate-meal'
     | '/api/generate-diet'
+    | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/api/analyze-meal'
     | '/api/estimate-meal'
     | '/api/generate-diet'
+    | '/lovable/email/queue/process'
   id:
     | '__root__'
     | '/'
@@ -157,6 +169,7 @@ export interface FileRouteTypes {
     | '/api/analyze-meal'
     | '/api/estimate-meal'
     | '/api/generate-diet'
+    | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +184,7 @@ export interface RootRouteChildren {
   ApiAnalyzeMealRoute: typeof ApiAnalyzeMealRoute
   ApiEstimateMealRoute: typeof ApiEstimateMealRoute
   ApiGenerateDietRoute: typeof ApiGenerateDietRoute
+  LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +266,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAnalyzeMealRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lovable/email/queue/process': {
+      id: '/lovable/email/queue/process'
+      path: '/lovable/email/queue/process'
+      fullPath: '/lovable/email/queue/process'
+      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,7 +288,18 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAnalyzeMealRoute: ApiAnalyzeMealRoute,
   ApiEstimateMealRoute: ApiEstimateMealRoute,
   ApiGenerateDietRoute: ApiGenerateDietRoute,
+  LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
