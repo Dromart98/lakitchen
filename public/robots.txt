@@ -1,7 +1,4 @@
 User-agent: *
 Allow: /
-Disallow: /auth
-Disallow: /reset-password
-Disallow: /api/
 
-Sitemap: https://lakitchenapp.com/sitemap.xml
+Sitemap: https://www.lakitchenapp.com/sitemap.xml

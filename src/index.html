@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10231f" />
+    <meta
+      name="description"
+      content="LaKitchen organiza tu despensa, macros y comidas desde una app rápida, simple y lista para Vercel."
+    />
+    <meta property="og:title" content="LaKitchen · Cocina inteligente" />
+    <meta
+      property="og:description"
+      content="Inventario, macros y planificación de comidas sin fricción."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="canonical" href="https://www.lakitchenapp.com/" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>LaKitchen · Cocina inteligente</title>
+  </head>
+  <body>
+    <main>
+      <nav class="nav" aria-label="Principal">
+        <a class="brand" href="#top" aria-label="LaKitchen inicio"><span>La</span>Kitchen</a>
+        <div class="nav__links">
+          <a href="#macros">Macros</a>
+          <a href="#despensa">Despensa</a>
+          <a href="#plan">Plan</a>
+        </div>
+      </nav>
+
+      <section class="hero" id="top">
+        <div class="hero__copy">
+          <p class="eyebrow">Cocina ordenada · cuerpo alimentado</p>
+          <h1>Tu cocina, tus macros y tus comidas en un panel simple.</h1>
+          <p class="hero__text">
+            Una reconstrucción ligera de LaKitchen: sin dependencias frágiles, sin servidor obligatorio y lista para desplegarse como app estática en Vercel.
+          </p>
+          <div class="hero__actions">
+            <a class="button button--primary" href="#macros">Registrar comida</a>
+            <a class="button button--ghost" href="#despensa">Ver despensa</a>
+          </div>
+        </div>
+        <aside class="hero__card" aria-label="Resumen del día">
+          <span class="card__label">Hoy</span>
+          <strong><span data-total-calories>0</span> kcal</strong>
+          <p><span data-total-protein>0</span> g de proteína registrados</p>
+          <div class="progress" aria-hidden="true"><span data-calorie-progress></span></div>
+        </aside>
+      </section>
+
+      <section class="grid" aria-label="Métricas principales">
+        <article class="metric">
+          <span>Comidas</span>
+          <strong data-meal-count>0</strong>
+          <p>Registro local, privado y editable.</p>
+        </article>
+        <article class="metric">
+          <span>Despensa</span>
+          <strong data-pantry-count>0</strong>
+          <p>Productos básicos bajo control.</p>
+        </article>
+        <article class="metric metric--warning">
+          <span>Alertas</span>
+          <strong data-alert-count>0</strong>
+          <p>Ítems en mínimo o por debajo.</p>
+        </article>
+      </section>
+
+      <section class="panel" id="macros">
+        <div class="section-heading">
+          <p class="eyebrow">Macros</p>
+          <h2>Registro rápido de comidas</h2>
+        </div>
+        <form class="form" data-meal-form>
+          <label>
+            Comida
+            <input name="name" autocomplete="off" placeholder="Ej. tortilla con aguacate" required />
+          </label>
+          <label>
+            kcal
+            <input name="calories" inputmode="numeric" min="1" placeholder="520" required />
+          </label>
+          <label>
+            Proteína
+            <input name="protein" inputmode="numeric" min="0" placeholder="35" required />
+          </label>
+          <button class="button button--primary" type="submit">Agregar</button>
+        </form>
+        <div class="list" data-meal-list></div>
+      </section>
+
+      <section class="panel" id="despensa">
+        <div class="section-heading">
+          <p class="eyebrow">Despensa</p>
+          <h2>Inventario mínimo viable</h2>
+        </div>
+        <form class="form form--compact" data-pantry-form>
+          <label>
+            Nuevo producto
+            <input name="name" autocomplete="off" placeholder="Ej. lentejas" required />
+          </label>
+          <button class="button button--primary" type="submit">Añadir</button>
+        </form>
+        <div class="list" data-pantry-list></div>
+      </section>
+
+      <section class="panel plan" id="plan">
+        <div>
+          <p class="eyebrow">Plan Vercel</p>
+          <h2>Base sana para crecer</h2>
+          <p>
+            Esta versión corre como sitio estático: build reproducible, rutas protegidas por rewrite a <code>index.html</code> y estado local para validar la experiencia antes de reconectar Supabase, emails o IA.
+          </p>
+        </div>
+        <ul>
+          <li>✅ HTML, CSS y JavaScript nativo.</li>
+          <li>✅ Sin runtime SSR obligatorio.</li>
+          <li>✅ Persistencia local simple.</li>
+          <li>✅ Preparada para módulos futuros.</li>
+        </ul>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,17 +1,12 @@
 # LaKitchen
 
-> App para llevar el conteo de tu despensa, nevera y congelador, controlar macros y analizar comidas con IA.
+> Panel web estático para organizar comidas, macros y despensa desde el navegador.
 
-LaKitchen te ayuda a gestionar el inventario de tu cocina, registrar comidas con cálculo automático de calorías y macros, generar planes de dieta basados en lo que ya tienes en casa, y analizar platos con una foto.
+LaKitchen es ahora una base ligera y compatible con Vercel. No requiere servidor, dependencias de frontend ni servicios externos para cargar la experiencia principal.
 
-## Pages
+## Funciones
 
-- [Inicio](/): Resumen diario de macros, inventario y alertas de stock bajo.
-- [Inventario](/inventario): Gestión de despensa, nevera, congelador y lista de la compra.
-- [Macros](/macros): Registro de comidas, calculadora de objetivos e historial.
-- [Dietas IA](/dietas): Planes de comida generados con la IA usando tu inventario.
-- [Foto](/foto): Analiza una foto de un plato y obtén kcal y macros.
-
-## Optional
-
-- [Ajustes](/ajustes): Personalización de la paleta de colores.
+- [Inicio](/): Hero de producto, resumen de calorías, proteína y alertas.
+- [Macros](#macros): Registro local de comidas con kcal y proteína.
+- [Despensa](#despensa): Inventario básico con control de cantidades y avisos de stock bajo.
+- [Plan Vercel](#plan): Notas de arquitectura para crecer sin acoplar la primera versión a SSR o APIs.

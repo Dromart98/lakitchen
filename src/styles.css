@@ -1,182 +1,110 @@
-@import "tailwindcss" source(none);
-@source "../src";
-@import "tw-animate-css";
-
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-protein: var(--protein);
-  --color-carbs: var(--carbs);
-  --color-fat: var(--fat);
-  --font-display: "Space Grotesk", system-ui, sans-serif;
-  --font-sans: "Inter", system-ui, sans-serif;
-  --shadow-glow: 0 0 40px -10px oklch(0.82 0.18 165 / 0.4);
-  --shadow-card: 0 8px 32px -12px oklch(0 0 0 / 0.6);
-  --gradient-primary: linear-gradient(135deg, oklch(0.82 0.18 165), oklch(0.65 0.2 170));
-  --gradient-surface: linear-gradient(180deg, oklch(0.18 0.04 180), oklch(0.13 0.03 200));
-  --gradient-hero: radial-gradient(ellipse at top, oklch(0.3 0.1 165 / 0.4), transparent 60%);
-}
-
 :root {
-  --radius: 0.875rem;
-  /* Dark vibrant mint by default */
-  --background: oklch(0.16 0.03 200);
-  --foreground: oklch(0.97 0.01 165);
-  --card: oklch(0.21 0.035 195);
-  --card-foreground: oklch(0.97 0.01 165);
-  --popover: oklch(0.22 0.035 195);
-  --popover-foreground: oklch(0.97 0.01 165);
-  --primary: oklch(0.82 0.18 165);
-  --primary-foreground: oklch(0.15 0.04 200);
-  --secondary: oklch(0.28 0.04 190);
-  --secondary-foreground: oklch(0.97 0.01 165);
-  --muted: oklch(0.24 0.03 195);
-  --muted-foreground: oklch(0.7 0.02 170);
-  --accent: oklch(0.65 0.2 170);
-  --accent-foreground: oklch(0.15 0.04 200);
-  --destructive: oklch(0.65 0.22 25);
-  --destructive-foreground: oklch(0.98 0.01 0);
-  --warning: oklch(0.78 0.17 75);
-  --warning-foreground: oklch(0.18 0.04 60);
-  --success: oklch(0.78 0.18 155);
-  --success-foreground: oklch(0.15 0.04 200);
-  --border: oklch(1 0 0 / 0.08);
-  --input: oklch(1 0 0 / 0.1);
-  --ring: oklch(0.82 0.18 165);
-  --protein: oklch(0.72 0.2 25);
-  --carbs: oklch(0.78 0.17 75);
-  --fat: oklch(0.78 0.16 280);
+  color-scheme: dark;
+  --bg: #10231f;
+  --card: rgba(255, 255, 255, 0.08);
+  --card-strong: rgba(255, 255, 255, 0.13);
+  --line: rgba(255, 255, 255, 0.14);
+  --text: #f4fff9;
+  --muted: #b7ccc4;
+  --mint: #83f1bf;
+  --mint-strong: #30d99a;
+  --orange: #ffc46b;
+  --shadow: 0 24px 90px rgba(0, 0, 0, 0.32);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-/* Tema "warm" — Naranja cálido */
-:root[data-theme="warm"] {
-  --background: oklch(0.16 0.03 40);
-  --foreground: oklch(0.97 0.02 70);
-  --card: oklch(0.21 0.04 45);
-  --card-foreground: oklch(0.97 0.02 70);
-  --popover: oklch(0.22 0.04 45);
-  --popover-foreground: oklch(0.97 0.02 70);
-  --primary: oklch(0.78 0.18 55);
-  --primary-foreground: oklch(0.18 0.05 40);
-  --secondary: oklch(0.3 0.05 40);
-  --secondary-foreground: oklch(0.97 0.02 70);
-  --muted: oklch(0.25 0.03 40);
-  --muted-foreground: oklch(0.72 0.04 60);
-  --accent: oklch(0.7 0.2 35);
-  --accent-foreground: oklch(0.16 0.05 40);
-  --ring: oklch(0.78 0.18 55);
-  --gradient-primary: linear-gradient(135deg, oklch(0.78 0.18 55), oklch(0.65 0.22 35));
-  --gradient-hero: radial-gradient(ellipse at top, oklch(0.4 0.15 45 / 0.45), transparent 60%);
-  --shadow-glow: 0 0 40px -10px oklch(0.78 0.18 55 / 0.45);
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  min-width: 320px;
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(131, 241, 191, 0.24), transparent 34rem),
+    radial-gradient(circle at 80% 12%, rgba(255, 196, 107, 0.18), transparent 28rem),
+    linear-gradient(135deg, #0d1b18 0%, var(--bg) 52%, #071311 100%);
+  color: var(--text);
 }
+a { color: inherit; text-decoration: none; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 56px; }
 
-/* Tema "light" — Claro Menta */
-:root[data-theme="light"] {
-  --background: oklch(0.98 0.005 165);
-  --foreground: oklch(0.2 0.03 200);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.03 200);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.03 200);
-  --primary: oklch(0.62 0.15 165);
-  --primary-foreground: oklch(0.99 0.01 165);
-  --secondary: oklch(0.94 0.02 175);
-  --secondary-foreground: oklch(0.22 0.04 200);
-  --muted: oklch(0.95 0.015 180);
-  --muted-foreground: oklch(0.45 0.03 195);
-  --accent: oklch(0.55 0.14 175);
-  --accent-foreground: oklch(0.99 0.01 165);
-  --border: oklch(0.2 0.04 200 / 0.1);
-  --input: oklch(0.2 0.04 200 / 0.12);
-  --ring: oklch(0.62 0.15 165);
-  --gradient-primary: linear-gradient(135deg, oklch(0.62 0.15 165), oklch(0.55 0.14 175));
-  --gradient-surface: linear-gradient(180deg, oklch(0.99 0.005 165), oklch(0.96 0.01 180));
-  --gradient-hero: radial-gradient(ellipse at top, oklch(0.62 0.15 165 / 0.18), transparent 60%);
-  --shadow-glow: 0 0 40px -10px oklch(0.62 0.15 165 / 0.35);
-  --shadow-card: 0 8px 32px -12px oklch(0.2 0.04 200 / 0.15);
+.nav {
+  position: sticky;
+  top: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(9, 24, 21, 0.72);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
 }
+.brand { font-weight: 900; letter-spacing: -0.04em; }
+.brand span { color: var(--mint); }
+.nav__links { display: flex; gap: 8px; color: var(--muted); font-size: 0.94rem; }
+.nav__links a { border-radius: 999px; padding: 8px 12px; }
+.nav__links a:hover { background: var(--card); color: var(--text); }
 
-/* Tema "night" — Azul noche */
-:root[data-theme="night"] {
-  --background: oklch(0.14 0.04 270);
-  --foreground: oklch(0.97 0.01 270);
-  --card: oklch(0.2 0.05 270);
-  --card-foreground: oklch(0.97 0.01 270);
-  --popover: oklch(0.22 0.05 270);
-  --popover-foreground: oklch(0.97 0.01 270);
-  --primary: oklch(0.7 0.2 280);
-  --primary-foreground: oklch(0.15 0.04 270);
-  --secondary: oklch(0.28 0.06 275);
-  --secondary-foreground: oklch(0.97 0.01 270);
-  --muted: oklch(0.24 0.04 270);
-  --muted-foreground: oklch(0.72 0.03 270);
-  --accent: oklch(0.75 0.18 290);
-  --accent-foreground: oklch(0.15 0.04 270);
-  --ring: oklch(0.7 0.2 280);
-  --gradient-primary: linear-gradient(135deg, oklch(0.7 0.2 280), oklch(0.6 0.22 295));
-  --gradient-hero: radial-gradient(ellipse at top, oklch(0.35 0.15 280 / 0.45), transparent 60%);
-  --shadow-glow: 0 0 40px -10px oklch(0.7 0.2 280 / 0.45);
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: stretch;
+  padding: 82px 0 28px;
 }
-
-@layer base {
-  * {
-    border-color: var(--color-border);
-  }
-  html, body {
-    background: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-  }
-  h1, h2, h3, h4 {
-    font-family: var(--font-display);
-    letter-spacing: -0.02em;
-  }
+.hero__copy, .hero__card, .metric, .panel {
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--card), rgba(255, 255, 255, 0.045));
+  box-shadow: var(--shadow);
 }
+.hero__copy { min-height: 440px; padding: clamp(28px, 6vw, 64px); border-radius: 42px; }
+.eyebrow { margin: 0 0 12px; color: var(--mint); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.17em; text-transform: uppercase; }
+h1, h2 { max-width: 780px; margin: 0; letter-spacing: -0.065em; line-height: 0.95; }
+h1 { font-size: clamp(3.2rem, 9vw, 7.4rem); }
+h2 { font-size: clamp(2rem, 5vw, 4.25rem); }
+.hero__text, .plan p { max-width: 680px; color: var(--muted); font-size: 1.1rem; line-height: 1.7; }
+.hero__actions, .form, .stepper { display: flex; flex-wrap: wrap; gap: 12px; }
+.button { border: 1px solid var(--line); border-radius: 999px; padding: 12px 18px; color: var(--text); font-weight: 800; }
+.button--primary { border-color: transparent; background: linear-gradient(135deg, var(--mint), var(--mint-strong)); color: #062119; }
+.button--ghost { background: var(--card); }
+.hero__card { display: flex; min-height: 440px; flex-direction: column; justify-content: end; padding: 28px; border-radius: 42px; }
+.card__label, .metric span, .list-item span { color: var(--muted); }
+.hero__card strong { font-size: clamp(3rem, 8vw, 5.4rem); letter-spacing: -0.08em; line-height: 0.9; }
+.progress { overflow: hidden; height: 12px; margin-top: 22px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); }
+.progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--mint), var(--orange)); }
 
-@layer utilities {
-  .bg-gradient-primary { background: var(--gradient-primary); }
-  .bg-gradient-surface { background: var(--gradient-surface); }
-  .bg-gradient-hero { background: var(--gradient-hero); }
-  .shadow-glow { box-shadow: var(--shadow-glow); }
-  .shadow-card { box-shadow: var(--shadow-card); }
-  .text-balance { text-wrap: balance; }
-}
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 16px 0; }
+.metric { padding: 22px; border-radius: 28px; }
+.metric strong { display: block; margin: 8px 0; font-size: 3rem; letter-spacing: -0.06em; }
+.metric p { margin: 0; color: var(--muted); }
+.metric--warning strong { color: var(--orange); }
 
-@layer base {
-  button, [role="button"], a {
-    transition: transform 120ms ease, opacity 120ms ease, background-color 150ms ease, box-shadow 150ms ease;
-  }
-  button:active:not(:disabled), [role="button"]:active, a:active {
-    transform: scale(0.96);
-    opacity: 0.9;
-  }
+.panel { margin-top: 16px; padding: clamp(22px, 4vw, 38px); border-radius: 34px; }
+.section-heading { margin-bottom: 22px; }
+.form { align-items: end; margin-bottom: 18px; }
+.form label { display: grid; flex: 1 1 180px; gap: 8px; color: var(--muted); font-weight: 700; }
+.form--compact label { flex-basis: 320px; }
+input { width: 100%; border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; background: rgba(0, 0, 0, 0.16); color: var(--text); outline: none; }
+input:focus { border-color: var(--mint); box-shadow: 0 0 0 4px rgba(131, 241, 191, 0.14); }
+.list { display: grid; gap: 10px; }
+.list-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 22px; background: rgba(255, 255, 255, 0.055); }
+.list-item div:first-child { display: grid; gap: 4px; }
+.list-item--low { border-color: rgba(255, 196, 107, 0.45); background: rgba(255, 196, 107, 0.1); }
+.list-item > button, .stepper button { min-width: 42px; border: 1px solid var(--line); border-radius: 999px; padding: 9px 12px; background: var(--card-strong); color: var(--text); font-weight: 900; }
+.plan { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: center; }
+.plan code { border-radius: 8px; background: rgba(255, 255, 255, 0.1); padding: 2px 6px; }
+.plan ul { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; color: var(--muted); }
+
+@media (max-width: 820px) {
+  main { width: min(100% - 20px, 1120px); }
+  .nav { align-items: flex-start; border-radius: 24px; }
+  .nav__links { flex-wrap: wrap; justify-content: flex-end; }
+  .hero, .grid, .plan { grid-template-columns: 1fr; }
+  .hero { padding-top: 44px; }
+  .hero__copy, .hero__card { min-height: auto; border-radius: 30px; }
 }
