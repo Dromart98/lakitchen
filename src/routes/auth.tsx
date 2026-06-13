@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/lib/auth";
 import { Apple, Loader2, Mail } from "lucide-react";
 
@@ -9,9 +8,16 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Acceder · LaKitchen" },
-      { name: "description", content: "Crea tu cuenta o accede para sincronizar tu despensa y macros en todos tus dispositivos." },
+      {
+        name: "description",
+        content:
+          "Crea tu cuenta o accede para sincronizar tu despensa y macros en todos tus dispositivos.",
+      },
       { property: "og:title", content: "Acceder a LaKitchen" },
-      { property: "og:description", content: "Inicia sesión o crea una cuenta para sincronizar tu despensa y macros." },
+      {
+        property: "og:description",
+        content: "Inicia sesión o crea una cuenta para sincronizar tu despensa y macros.",
+      },
       { property: "og:url", content: "https://lakitchenapp.com/auth" },
     ],
     links: [{ rel: "canonical", href: "https://lakitchenapp.com/auth" }],
@@ -62,28 +68,29 @@ function AuthPage() {
     }
   }
 
-  async function google() {
+  async function signInWithProvider(provider: "google" | "apple") {
     setError(null);
+    setInfo(null);
     setBusy(true);
-    try {
-      const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-      if (res && "error" in res && res.error) throw res.error;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error con Google");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
       setBusy(false);
     }
   }
 
-  async function apple() {
-    setError(null);
-    setBusy(true);
-    try {
-      const res = await lovable.auth.signInWithOAuth("apple", { redirect_uri: window.location.origin });
-      if (res && "error" in res && res.error) throw res.error;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error con Apple");
-      setBusy(false);
-    }
+  function google() {
+    void signInWithProvider("google");
+  }
+
+  function apple() {
+    void signInWithProvider("apple");
   }
 
   async function forgot() {
@@ -109,7 +116,11 @@ function AuthPage() {
   return (
     <div className="min-h-screen bg-background grid place-items-center px-4 py-10">
       <div className="w-full max-w-md">
-        <Link to="/" className="flex items-center justify-center gap-2 mb-6" aria-label="Ir al inicio de LaKitchen">
+        <Link
+          to="/"
+          className="flex items-center justify-center gap-2 mb-6"
+          aria-label="Ir al inicio de LaKitchen"
+        >
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary shadow-glow">
             <Apple className="h-5 w-5 text-primary-foreground" />
           </div>
@@ -120,12 +131,14 @@ function AuthPage() {
         <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-card">
           <div className="flex gap-1 rounded-xl bg-muted/40 p-1">
             <button
+              type="button"
               onClick={() => setMode("login")}
               className={tab(mode === "login")}
             >
               Acceder
             </button>
             <button
+              type="button"
               onClick={() => setMode("signup")}
               className={tab(mode === "signup")}
             >
@@ -134,6 +147,7 @@ function AuthPage() {
           </div>
 
           <button
+            type="button"
             onClick={google}
             disabled={busy}
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background/60 px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-50"
@@ -142,6 +156,7 @@ function AuthPage() {
           </button>
 
           <button
+            type="button"
             onClick={apple}
             disabled={busy}
             className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-black/90 disabled:opacity-50"
@@ -158,14 +173,34 @@ function AuthPage() {
           <form onSubmit={submit} className="space-y-3">
             {mode === "signup" && (
               <Field label="Nombre">
-                <input value={name} onChange={(e) => setName(e.target.value)} className={inp} placeholder="Tu nombre" />
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className={inp}
+                  placeholder="Tu nombre"
+                />
               </Field>
             )}
             <Field label="Email">
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inp} placeholder="tucorreo@ejemplo.com" />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inp}
+                placeholder="tucorreo@ejemplo.com"
+              />
             </Field>
             <Field label="Contraseña">
-              <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className={inp} placeholder="••••••••" />
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inp}
+                placeholder="••••••••"
+              />
             </Field>
 
             {error && <p className="text-sm text-destructive">{error}</p>}
@@ -181,7 +216,11 @@ function AuthPage() {
             </button>
 
             {mode === "login" && (
-              <button type="button" onClick={forgot} className="w-full text-xs text-muted-foreground hover:text-primary">
+              <button
+                type="button"
+                onClick={forgot}
+                className="w-full text-xs text-muted-foreground hover:text-primary"
+              >
                 ¿Olvidaste tu contraseña?
               </button>
             )}
@@ -196,7 +235,8 @@ function AuthPage() {
   );
 }
 
-const inp = "w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary";
+const inp =
+  "w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary";
 const tab = (active: boolean) =>
   "flex-1 rounded-lg px-3 py-2 text-sm font-medium transition " +
   (active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground");
@@ -213,7 +253,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4">
-      <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.9-5.5 3.9-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.3 14.6 2.3 12 2.3 6.7 2.3 2.5 6.5 2.5 11.8s4.2 9.6 9.5 9.6c5.5 0 9.1-3.8 9.1-9.2 0-.6-.1-1.1-.2-1.6L12 10.2z" />
+      <path
+        fill="#EA4335"
+        d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.9-5.5 3.9-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.3 14.6 2.3 12 2.3 6.7 2.3 2.5 6.5 2.5 11.8s4.2 9.6 9.5 9.6c5.5 0 9.1-3.8 9.1-9.2 0-.6-.1-1.1-.2-1.6L12 10.2z"
+      />
     </svg>
   );
 }
