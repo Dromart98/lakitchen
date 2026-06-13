@@ -8,9 +8,16 @@ export const Route = createFileRoute("/ajustes")({
   head: () => ({
     meta: [
       { title: "Ajustes · LaKitchen" },
-      { name: "description", content: "Personaliza la apariencia de LaKitchen eligiendo entre diferentes temas y paletas de colores." },
+      {
+        name: "description",
+        content:
+          "Personaliza la apariencia de LaKitchen eligiendo entre diferentes temas y paletas de colores.",
+      },
       { property: "og:title", content: "Ajustes · LaKitchen" },
-      { property: "og:description", content: "Elige el tema y la paleta de colores que prefieras para tu LaKitchen." },
+      {
+        property: "og:description",
+        content: "Elige el tema y la paleta de colores que prefieras para tu LaKitchen.",
+      },
       { property: "og:url", content: "https://lakitchenapp.com/ajustes" },
     ],
     links: [{ rel: "canonical", href: "https://lakitchenapp.com/ajustes" }],
@@ -34,11 +41,13 @@ function Settings() {
         </div>
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">Ajustes</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Elige la paleta de colores de la aplicación.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Elige la paleta de colores de la aplicación.
+          </p>
         </div>
       </div>
 
-      <section className="mt-6 grid gap-3 sm:grid-cols-3">
+      <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {THEMES.map((t) => {
           const active = current === t.id;
           return (
@@ -47,7 +56,9 @@ function Settings() {
               onClick={() => choose(t.id)}
               className={
                 "group relative overflow-hidden rounded-2xl border bg-card p-4 text-left shadow-card transition " +
-                (active ? "border-primary ring-2 ring-primary/40" : "border-border/60 hover:border-primary/40")
+                (active
+                  ? "border-primary ring-2 ring-primary/40"
+                  : "border-border/60 hover:border-primary/40")
               }
             >
               <div className="flex gap-1.5">
