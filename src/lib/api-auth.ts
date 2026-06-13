@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { getSupabaseClientEnv } from "@/integrations/supabase/env";
 
 /**
  * Verify the Authorization: Bearer token on an incoming request.
@@ -8,9 +9,10 @@ import type { Database } from "@/integrations/supabase/types";
 export async function requireUser(
   request: Request,
 ): Promise<{ userId: string } | Response> {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  let supabaseConfig: ReturnType<typeof getSupabaseClientEnv>;
+  try {
+    supabaseConfig = getSupabaseClientEnv();
+  } catch {
     return json({ error: "Servidor mal configurado" }, 500);
   }
 
@@ -21,9 +23,13 @@ export async function requireUser(
   const token = authHeader.slice("Bearer ".length).trim();
   if (!token) return json({ error: "No autenticado" }, 401);
 
-  const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
-  });
+  const supabase = createClient<Database>(
+    supabaseConfig.url,
+    supabaseConfig.publishableKey,
+    {
+      auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
+    },
+  );
   const { data, error } = await supabase.auth.getClaims(token);
   if (error || !data?.claims?.sub) {
     return json({ error: "Token inválido" }, 401);
