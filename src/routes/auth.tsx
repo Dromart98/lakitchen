@@ -41,10 +41,10 @@ function AuthPage() {
   const busy = pendingAction !== null;
 
   useEffect(() => {
-    if (!loading && userId && pathname === "/auth") {
-      void navigate({ to: "/", replace: true });
+    if (!loading && session && pathname === "/auth") {
+      navigate({ to: "/", replace: true });
     }
-  }, [loading, navigate, pathname, userId]);
+  }, [loading, navigate, pathname, session]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
