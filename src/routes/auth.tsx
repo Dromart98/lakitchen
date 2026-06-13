@@ -1,6 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getSupabaseDebugInfo } from "@/integrations/supabase/env";
 import { useAuth } from "@/lib/auth";
 import { Apple, Loader2, Mail } from "lucide-react";
 
@@ -27,24 +28,29 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { session, loading } = useAuth();
+  const userId = session?.user.id;
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const busy = pendingAction !== null;
 
   useEffect(() => {
-    if (!loading && session) navigate({ to: "/", replace: true });
-  }, [loading, session, navigate]);
+    if (!loading && userId && pathname === "/auth") {
+      void navigate({ to: "/", replace: true });
+    }
+  }, [loading, navigate, pathname, userId]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setInfo(null);
-    setBusy(true);
+    setPendingAction("email");
     try {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
@@ -62,26 +68,35 @@ function AuthPage() {
         if (error) throw error;
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error desconocido");
+      setError(getAuthErrorMessage(e));
     } finally {
-      setBusy(false);
+      setPendingAction(null);
     }
   }
 
   async function signInWithProvider(provider: "google" | "apple") {
     setError(null);
     setInfo(null);
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth`,
-      },
-    });
+    setPendingAction(provider);
+    const redirectTo = `${window.location.origin}/auth`;
+    logOAuthDebug("start", { provider, redirectTo });
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+        },
+      });
 
-    if (error) {
-      setError(error.message);
-      setBusy(false);
+      if (error) {
+        logOAuthDebug("error", { provider, redirectTo, error });
+        setError(getAuthErrorMessage(error, provider));
+        setPendingAction(null);
+      }
+    } catch (e) {
+      logOAuthDebug("exception", { provider, redirectTo, error: e });
+      setError(getAuthErrorMessage(e, provider));
+      setPendingAction(null);
     }
   }
 
@@ -99,7 +114,7 @@ function AuthPage() {
       return;
     }
     setError(null);
-    setBusy(true);
+    setPendingAction("reset");
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -107,9 +122,9 @@ function AuthPage() {
       if (error) throw error;
       setInfo("Te enviamos un email para restablecer la contraseña.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error desconocido");
+      setError(getAuthErrorMessage(e));
     } finally {
-      setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -152,7 +167,12 @@ function AuthPage() {
             disabled={busy}
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background/60 px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-50"
           >
-            <GoogleIcon /> Continuar con Google
+            {pendingAction === "google" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
+            Continuar con Google
           </button>
 
           <button
@@ -161,7 +181,12 @@ function AuthPage() {
             disabled={busy}
             className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-black/90 disabled:opacity-50"
           >
-            <Apple className="h-4 w-4" /> Continuar con Apple
+            {pendingAction === "apple" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Apple className="h-4 w-4" />
+            )}
+            Continuar con Apple
           </button>
 
           <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
@@ -211,7 +236,11 @@ function AuthPage() {
               disabled={busy}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50"
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              {pendingAction === "email" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="h-4 w-4" />
+              )}
               {mode === "login" ? "Acceder" : "Crear cuenta"}
             </button>
 
@@ -233,6 +262,58 @@ function AuthPage() {
       </div>
     </div>
   );
+}
+
+type PendingAction = "email" | "google" | "apple" | "reset" | null;
+
+function getAuthErrorMessage(error: unknown, provider?: "google" | "apple") {
+  const message = error instanceof Error ? error.message : String(error || "");
+  const normalized = message.toLowerCase();
+
+  if (
+    provider &&
+    (normalized.includes("unsupported provider") || normalized.includes("provider is not enabled"))
+  ) {
+    const providerLabel = provider === "google" ? "Google" : "Apple";
+    return `${providerLabel} no está habilitado en Supabase Auth. Activa el proveedor en Authentication > Providers y revisa las URLs de redirección.`;
+  }
+
+  return message || "Error desconocido";
+}
+
+function logOAuthDebug(
+  event: "start" | "error" | "exception",
+  details: { provider: "google" | "apple"; redirectTo: string; error?: unknown },
+) {
+  const payload = {
+    event,
+    provider: details.provider,
+    redirectTo: details.redirectTo,
+    supabase: getSupabaseDebugInfo(),
+    error: details.error ? getSafeAuthError(details.error) : undefined,
+  };
+
+  if (event === "start") {
+    console.info("[Auth][OAuth]", payload);
+  } else {
+    console.error("[Auth][OAuth]", payload);
+  }
+}
+
+function getSafeAuthError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return { message: String(error || "Unknown auth error") };
+  }
+
+  const record = error as Record<string, unknown>;
+  return {
+    name: typeof record.name === "string" ? record.name : undefined,
+    message: typeof record.message === "string" ? record.message : undefined,
+    status: typeof record.status === "number" ? record.status : undefined,
+    code: typeof record.code === "string" ? record.code : undefined,
+    error_code: typeof record.error_code === "string" ? record.error_code : undefined,
+    msg: typeof record.msg === "string" ? record.msg : undefined,
+  };
 }
 
 const inp =
