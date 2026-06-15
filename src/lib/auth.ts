@@ -24,14 +24,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
+    const finishLoading = (nextSession: Session | null) => {
       if (!mounted) return;
-      setSession(data.session);
+      setSession(nextSession);
       setLoading(false);
-    });
+    };
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => finishLoading(data.session))
+      .catch((error) => {
+        console.error("[Auth] No se pudo obtener la sesión inicial", error);
+        finishLoading(null);
+      });
+
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      setLoading(false);
+      finishLoading(s);
     });
     return () => {
       mounted = false;
