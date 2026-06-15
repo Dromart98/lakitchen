@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession((currentSession) =>
         sameSession(currentSession, nextSession) ? currentSession : nextSession,
       );
+      setSession(nextSession);
       setLoading(false);
     };
 
