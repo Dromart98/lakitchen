@@ -18,20 +18,34 @@ type AuthState = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+function sameSession(a: Session | null, b: Session | null) {
+  return a?.access_token === b?.access_token && a?.user.id === b?.user.id;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
+    const finishLoading = (nextSession: Session | null) => {
       if (!mounted) return;
-      setSession(data.session);
+      setSession((currentSession) =>
+        sameSession(currentSession, nextSession) ? currentSession : nextSession,
+      );
       setLoading(false);
-    });
+    };
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => finishLoading(data.session))
+      .catch((error) => {
+        console.error("[Auth] No se pudo obtener la sesión inicial", error);
+        finishLoading(null);
+      });
+
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      setLoading(false);
+      finishLoading(s);
     });
     return () => {
       mounted = false;

@@ -123,6 +123,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: React.ReactNode }) {
+  // In the Vite client bundle this route tree is mounted inside #root. Rendering
+  // another <html>/<body> there creates invalid nested document elements, which
+  // can break React's delegated input events and make controlled inputs appear
+  // frozen. Keep the document shell for server rendering only.
+  if (typeof document !== "undefined") {
+    return <>{children}</>;
+  }
+
   return (
     <html lang="en">
       <head>
