@@ -30,7 +30,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { session, loading } = useAuth();
-  const userId = session?.user.id;
+  const sessionUserId = session?.user.id;
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,10 +41,21 @@ function AuthPage() {
   const busy = pendingAction !== null;
 
   useEffect(() => {
-    if (!loading && session && pathname === "/auth") {
-      navigate({ to: "/", replace: true });
+    if (loading || !sessionUserId || pathname !== "/auth") {
+      return;
     }
-  }, [loading, navigate, pathname, session]);
+
+    void navigate({ to: "/", replace: true });
+  }, [loading, navigate, pathname, sessionUserId]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get("error_description") || params.get("error");
+
+    if (oauthError) {
+      setError(getAuthErrorMessage(new Error(oauthError), "google"));
+    }
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,19 +64,24 @@ function AuthPage() {
     setPendingAction("email");
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: { display_name: name || email.split("@")[0] },
-          },
-        });
+        const { error } = await withAuthTimeout(
+          supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: {
+              emailRedirectTo: window.location.origin,
+              data: { display_name: name || email.trim().split("@")[0] },
+            },
+          }),
+        );
         if (error) throw error;
         setInfo("Cuenta creada. Revisa tu email para confirmar y luego inicia sesión.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await withAuthTimeout(
+          supabase.auth.signInWithPassword({ email: email.trim(), password }),
+        );
         if (error) throw error;
+        void navigate({ to: "/", replace: true });
       }
     } catch (e) {
       setError(getAuthErrorMessage(e));
@@ -81,12 +97,14 @@ function AuthPage() {
     const redirectTo = `${window.location.origin}/auth`;
     logOAuthDebug("start", { provider, redirectTo });
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo,
-        },
-      });
+      const { error } = await withAuthTimeout(
+        supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo,
+          },
+        }),
+      );
 
       if (error) {
         logOAuthDebug("error", { provider, redirectTo, error });
@@ -116,9 +134,11 @@ function AuthPage() {
     setError(null);
     setPendingAction("reset");
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      const { error } = await withAuthTimeout(
+        supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }),
+      );
       if (error) throw error;
       setInfo("Te enviamos un email para restablecer la contraseña.");
     } catch (e) {
@@ -129,7 +149,7 @@ function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background grid place-items-center px-4 py-10">
+    <div className="isolate grid min-h-screen place-items-center bg-background px-4 py-10">
       <div className="w-full max-w-md">
         <Link
           to="/"
@@ -143,7 +163,7 @@ function AuthPage() {
         </Link>
         <h1 className="sr-only">Acceder a LaKitchen</h1>
 
-        <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-card">
+        <div className="relative z-10 rounded-2xl border border-border/60 bg-card p-6 shadow-card">
           <div className="flex gap-1 rounded-xl bg-muted/40 p-1">
             <button
               type="button"
@@ -197,8 +217,11 @@ function AuthPage() {
 
           <form onSubmit={submit} className="space-y-3">
             {mode === "signup" && (
-              <Field label="Nombre">
+              <Field id="auth-name" label="Nombre">
                 <input
+                  id="auth-name"
+                  name="name"
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className={inp}
@@ -206,21 +229,27 @@ function AuthPage() {
                 />
               </Field>
             )}
-            <Field label="Email">
+            <Field id="auth-email" label="Email">
               <input
+                id="auth-email"
+                name="email"
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={inp}
                 placeholder="tucorreo@ejemplo.com"
               />
             </Field>
-            <Field label="Contraseña">
+            <Field id="auth-password" label="Contraseña">
               <input
+                id="auth-password"
+                name="password"
                 type="password"
                 required
                 minLength={6}
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={inp}
@@ -270,6 +299,18 @@ function getAuthErrorMessage(error: unknown, provider?: "google" | "apple") {
   const message = error instanceof Error ? error.message : String(error || "");
   const normalized = message.toLowerCase();
 
+  if (normalized.includes("auth request timed out")) {
+    return "Supabase no respondió a tiempo. Revisa tu conexión e inténtalo de nuevo.";
+  }
+
+  if (
+    normalized.includes("invalid login credentials") ||
+    normalized.includes("invalid credentials") ||
+    normalized.includes("email not confirmed")
+  ) {
+    return "Email o contraseña incorrectos, o la cuenta todavía no está confirmada.";
+  }
+
   if (
     provider &&
     (normalized.includes("unsupported provider") || normalized.includes("provider is not enabled"))
@@ -279,6 +320,25 @@ function getAuthErrorMessage(error: unknown, provider?: "google" | "apple") {
   }
 
   return message || "Error desconocido";
+}
+
+function withAuthTimeout<T>(promise: Promise<T>, timeoutMs = 15000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error("Auth request timed out"));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
 }
 
 function logOAuthDebug(
@@ -317,17 +377,19 @@ function getSafeAuthError(error: unknown) {
 }
 
 const inp =
-  "w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary";
+  "relative z-10 w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary";
 const tab = (active: boolean) =>
   "flex-1 rounded-lg px-3 py-2 text-sm font-medium transition " +
   (active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground");
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+        {label}
+      </label>
       {children}
-    </label>
+    </div>
   );
 }
 
