@@ -18,6 +18,10 @@ type AuthState = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+function sameSession(a: Session | null, b: Session | null) {
+  return a?.access_token === b?.access_token && a?.user.id === b?.user.id;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,6 +30,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
     const finishLoading = (nextSession: Session | null) => {
       if (!mounted) return;
+      setSession((currentSession) =>
+        sameSession(currentSession, nextSession) ? currentSession : nextSession,
+      );
       setSession(nextSession);
       setLoading(false);
     };
