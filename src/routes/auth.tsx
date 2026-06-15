@@ -47,7 +47,20 @@ function AuthPage() {
     }
 
     void navigate({ to: "/", replace: true });
+    if (!loading && sessionUserId && pathname === "/auth") {
+    if (!loading && session && pathname === "/auth") {
+      void navigate({ to: "/", replace: true });
+    }
   }, [loading, navigate, pathname, sessionUserId]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get("error_description") || params.get("error");
+
+    if (oauthError) {
+      setError(getAuthErrorMessage(new Error(oauthError), "google"));
+    }
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -266,6 +279,18 @@ function AuthPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              <input
+                id="auth-password"
+                name="password"
+                type="password"
+                required
+                minLength={6}
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inp}
+                placeholder="••••••••"
+              />
             </Field>
 
             {error && <p className="text-sm text-destructive">{error}</p>}
