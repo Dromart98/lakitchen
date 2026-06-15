@@ -30,7 +30,6 @@ function AuthPage() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { session, loading } = useAuth();
-  const userId = session?.user.id;
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,9 +41,18 @@ function AuthPage() {
 
   useEffect(() => {
     if (!loading && session && pathname === "/auth") {
-      navigate({ to: "/", replace: true });
+      void navigate({ to: "/", replace: true });
     }
   }, [loading, navigate, pathname, session]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get("error_description") || params.get("error");
+
+    if (oauthError) {
+      setError(getAuthErrorMessage(new Error(oauthError), "google"));
+    }
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,19 +61,24 @@ function AuthPage() {
     setPendingAction("email");
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: { display_name: name || email.split("@")[0] },
-          },
-        });
+        const { error } = await withAuthTimeout(
+          supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: {
+              emailRedirectTo: window.location.origin,
+              data: { display_name: name || email.trim().split("@")[0] },
+            },
+          }),
+        );
         if (error) throw error;
         setInfo("Cuenta creada. Revisa tu email para confirmar y luego inicia sesión.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await withAuthTimeout(
+          supabase.auth.signInWithPassword({ email: email.trim(), password }),
+        );
         if (error) throw error;
+        void navigate({ to: "/", replace: true });
       }
     } catch (e) {
       setError(getAuthErrorMessage(e));
@@ -81,12 +94,14 @@ function AuthPage() {
     const redirectTo = `${window.location.origin}/auth`;
     logOAuthDebug("start", { provider, redirectTo });
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo,
-        },
-      });
+      const { error } = await withAuthTimeout(
+        supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo,
+          },
+        }),
+      );
 
       if (error) {
         logOAuthDebug("error", { provider, redirectTo, error });
@@ -116,9 +131,11 @@ function AuthPage() {
     setError(null);
     setPendingAction("reset");
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      const { error } = await withAuthTimeout(
+        supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }),
+      );
       if (error) throw error;
       setInfo("Te enviamos un email para restablecer la contraseña.");
     } catch (e) {
@@ -270,6 +287,18 @@ function getAuthErrorMessage(error: unknown, provider?: "google" | "apple") {
   const message = error instanceof Error ? error.message : String(error || "");
   const normalized = message.toLowerCase();
 
+  if (normalized.includes("auth request timed out")) {
+    return "Supabase no respondió a tiempo. Revisa tu conexión e inténtalo de nuevo.";
+  }
+
+  if (
+    normalized.includes("invalid login credentials") ||
+    normalized.includes("invalid credentials") ||
+    normalized.includes("email not confirmed")
+  ) {
+    return "Email o contraseña incorrectos, o la cuenta todavía no está confirmada.";
+  }
+
   if (
     provider &&
     (normalized.includes("unsupported provider") || normalized.includes("provider is not enabled"))
@@ -279,6 +308,25 @@ function getAuthErrorMessage(error: unknown, provider?: "google" | "apple") {
   }
 
   return message || "Error desconocido";
+}
+
+function withAuthTimeout<T>(promise: Promise<T>, timeoutMs = 15000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error("Auth request timed out"));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
 }
 
 function logOAuthDebug(
