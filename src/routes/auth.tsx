@@ -41,9 +41,6 @@ function AuthPage() {
   const [info, setInfo] = useState<string | null>(null);
   const busy = pendingAction !== null;
 
-const [error, setError] = useState<string | null>(null);
-const [info, setInfo] = useState<string | null>(null);
-const busy = pendingAction !== null;
 
 useEffect(() => {
   if (loading || !sessionUserId || pathname !== "/auth") {
