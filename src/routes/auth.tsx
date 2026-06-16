@@ -41,23 +41,23 @@ function AuthPage() {
   const [info, setInfo] = useState<string | null>(null);
   const busy = pendingAction !== null;
 
-  useEffect(() => {
-    if (loading || !sessionUserId || pathname !== "/auth") {
-      return;
-    }
+const [error, setError] = useState<string | null>(null);
+const [info, setInfo] = useState<string | null>(null);
+const busy = pendingAction !== null;
 
-    void navigate({ to: "/", replace: true });
-    if (!loading && sessionUserId && pathname === "/auth") {
-    if (!loading && session && pathname === "/auth") {
-      void navigate({ to: "/", replace: true });
-    }
-  }, [loading, navigate, pathname, sessionUserId]);
+useEffect(() => {
+  if (loading || !sessionUserId || pathname !== "/auth") {
+    return;
+  }
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const oauthError = params.get("error_description") || params.get("error");
+  void navigate({ to: "/", replace: true });
+}, [loading, navigate, pathname, sessionUserId]);
 
-    if (oauthError) {
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const oauthError = params.get("error_description") || params.get("error");
+
+  if (oauthError) {
       setError(getAuthErrorMessage(new Error(oauthError), "google"));
     }
   }, []);
