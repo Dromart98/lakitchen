@@ -23,9 +23,9 @@ export const Route = createFileRoute("/foto")({
 });
 
 
-const ANALYZE_MEAL_TIMEOUT_MS = 60000;
+const ANALYZE_MEAL_TIMEOUT_MS = 45000;
 const MAX_UPLOAD_IMAGE_BYTES = 12 * 1024 * 1024;
-const MAX_ANALYZE_DATA_URL_LENGTH = 4 * 1024 * 1024;
+const MAX_ANALYZE_DATA_URL_LENGTH = 8 * 1024 * 1024;
 
 async function readJsonResponse(response: Response): Promise<unknown> {
   const text = await response.text();
@@ -118,7 +118,7 @@ function PhotoAnalyze() {
         setError("Formato de imagen no válido");
         return;
       }
-      const compressed = await compressImage(raw, 1024, 0.75).catch(() => raw);
+      const compressed = await compressImage(raw).catch(() => raw);
       if (compressed.length > MAX_ANALYZE_DATA_URL_LENGTH) {
         setPreview(null);
         setError("La imagen es demasiado grande. Usa una foto más ligera.");

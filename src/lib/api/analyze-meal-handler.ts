@@ -1,11 +1,12 @@
 import { requireUser } from "../api-auth.js";
+import { aiRateLimits, checkRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
 
 interface Body {
   imageBase64: string; // data URL or raw base64
 }
 
-const OPENAI_TIMEOUT_MS = 45000;
-const MAX_IMAGE_BASE64_LENGTH = 4 * 1024 * 1024;
+const OPENAI_TIMEOUT_MS = 30000;
+const MAX_IMAGE_BASE64_LENGTH = 8 * 1024 * 1024;
 const ALLOWED_DATA_URL_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/i;
 
 export async function handleAnalyzeMealRequest(request: Request): Promise<Response> {
@@ -14,6 +15,9 @@ export async function handleAnalyzeMealRequest(request: Request): Promise<Respon
   try {
     const auth = await requireUser(request);
     if (auth instanceof Response) return auth;
+
+    const rateLimit = checkRateLimit(aiRateLimits.analyzeMeal, auth.userId);
+    if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
     const key = process.env.OPENAI_API_KEY;
     if (!key)
@@ -29,16 +33,10 @@ export async function handleAnalyzeMealRequest(request: Request): Promise<Respon
     const validation = validateImageInput(body.imageBase64);
     if (validation instanceof Response) return validation;
     const dataUrl = validation;
-    const imageSize = getApproxImageSize(dataUrl);
-    console.info("[analyze-meal] Received image", {
-      approxBytes: imageSize.approxBytes,
-      mimeType: imageSize.mimeType,
-    });
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
     let upstream: Response;
-    const startedAt = Date.now();
     try {
       upstream = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -46,17 +44,9 @@ export async function handleAnalyzeMealRequest(request: Request): Promise<Respon
         signal: controller.signal,
         body: JSON.stringify(buildPayload(dataUrl)),
       });
-      console.info("[analyze-meal] OpenAI completed", {
-        status: upstream.status,
-        durationMs: Date.now() - startedAt,
-      });
     } catch (error) {
       if (isAbortError(error)) {
-        console.warn("[analyze-meal] OpenAI request timed out", {
-          code: "openai_timeout",
-          timeoutMs: OPENAI_TIMEOUT_MS,
-          approxImageBytes: imageSize.approxBytes,
-        });
+        console.warn("[analyze-meal] OpenAI request timed out", { code: "openai_timeout" });
         return json({ error: "OpenAI request timed out", code: "openai_timeout" }, 504);
       }
       console.error("[analyze-meal] OpenAI request failed", getSafeErrorLog(error));
@@ -119,15 +109,6 @@ function validateImageInput(imageBase64: unknown): string | Response {
   }
 
   return `data:image/jpeg;base64,${value.replace(/\s+/g, "")}`;
-}
-
-function getApproxImageSize(dataUrl: string) {
-  const match = dataUrl.match(/^data:([^;]+);base64,(.*)$/i);
-  const mimeType = match?.[1] ?? "image/jpeg";
-  const base64 = match?.[2] ?? dataUrl;
-  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
-  const approxBytes = Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
-  return { approxBytes, mimeType };
 }
 
 function methodNotAllowed() {
