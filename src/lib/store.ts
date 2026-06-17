@@ -380,6 +380,7 @@ function syncProducts(prev: Product[], next: Product[], uid: string) {
       .from("products")
       .delete()
       .in("id", toDelete)
+      .eq("user_id", uid)
       .then(({ error }) => {
         if (error) console.error("[products delete]", error);
       });
@@ -407,6 +408,7 @@ function syncMeals(prev: MealEntry[], next: MealEntry[], uid: string) {
       .from("meals")
       .delete()
       .in("id", toDelete)
+      .eq("user_id", uid)
       .then(({ error }) => {
         if (error) console.error("[meals delete]", error);
       });
