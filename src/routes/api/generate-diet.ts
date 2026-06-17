@@ -29,28 +29,65 @@ const bodySchema = z.object({
     .transform((s) => (s ?? "").replace(/[\r\n\t`]+/g, " ").slice(0, 500)),
 });
 
+const dietPlanSchema = {
+  type: "object",
+  properties: {
+    meals: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          time: { type: "string", description: "p.ej. Desayuno, Comida, Cena, Snack" },
+          ingredients: { type: "array", items: { type: "string" } },
+          instructions: { type: "string" },
+          kcal: { type: "number" },
+          protein: { type: "number" },
+          carbs: { type: "number" },
+          fat: { type: "number" },
+        },
+        required: [
+          "name",
+          "time",
+          "ingredients",
+          "instructions",
+          "kcal",
+          "protein",
+          "carbs",
+          "fat",
+        ],
+        additionalProperties: false,
+      },
+    },
+    notes: { type: "string" },
+  },
+  required: ["meals", "notes"],
+  additionalProperties: false,
+} as const;
+
 export const Route = createFileRoute("/api/generate-diet")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const auth = await requireUser(request);
-        if (auth instanceof Response) return auth;
-
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
-        let raw: unknown;
         try {
-          raw = await request.json();
-        } catch {
-          return json({ error: "JSON inválido" }, 400);
-        }
-        const parsed = bodySchema.safeParse(raw);
-        if (!parsed.success) {
-          return json({ error: "Datos inválidos" }, 400);
-        }
-        const body = parsed.data;
+          const auth = await requireUser(request);
+          if (auth instanceof Response) return auth;
 
-        const sys = `Eres un nutricionista práctico y creativo. Crea un plan de comidas para HOY usando PRIORITARIAMENTE los productos disponibles del usuario.
+          const key = process.env.OPENAI_API_KEY;
+          if (!key) return json({ error: "Missing OpenAI API configuration" }, 500);
+          let raw: unknown;
+          try {
+            raw = await request.json();
+          } catch {
+            return json({ error: "JSON inválido" }, 400);
+          }
+          const parsed = bodySchema.safeParse(raw);
+          if (!parsed.success) {
+            return json({ error: "Datos inválidos" }, 400);
+          }
+          const body = parsed.data;
+
+          const sys = `Eres un nutricionista práctico y creativo. Crea un plan de comidas para HOY usando PRIORITARIAMENTE los productos disponibles del usuario.
 
 REGLAS IMPORTANTES:
 - Maximiza el uso de ingredientes ya disponibles antes de proponer comprar nada.
@@ -58,79 +95,85 @@ REGLAS IMPORTANTES:
 - Productos en la NEVERA suelen ser más perecederos que los de despensa. Productos en CONGELADOR pueden esperar.
 - Sé creativo combinando lo que hay; sugiere recetas reales y sencillas. Si falta algún ingrediente clave para una receta, indícalo en "notes" como "te falta: ...".
 - Cada comida debe ser realista, equilibrada y respetar las preferencias.
-- Devuelve SOLO JSON usando la función propose_diet.`;
+- Devuelve SOLO JSON con la forma exacta del schema diet_plan.`;
 
-        const userPrompt = `Productos disponibles (úsalos prioritariamente, sobre todo los frescos/perecederos de nevera):\n${body.products
-          .map((p) => `- [${p.location}] ${p.name}: ${p.quantity}${p.unit}`)
-          .join("\n")}\n\nObjetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.\nLo que falta consumir hoy: ${body.remaining.kcal} kcal, P ${body.remaining.protein}g, C ${body.remaining.carbs}g, G ${body.remaining.fat}g.\nPreferencias: ${body.preferences || "ninguna"}.\n\nGenera 3-4 comidas variadas que sumen aproximadamente los macros restantes y que aprovechen lo perecedero primero.`;
+          const userPrompt = `Productos disponibles (úsalos prioritariamente, sobre todo los frescos/perecederos de nevera):\n${body.products
+            .map((p) => `- [${p.location}] ${p.name}: ${p.quantity}${p.unit}`)
+            .join(
+              "\n",
+            )}\n\nObjetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.\nLo que falta consumir hoy: ${body.remaining.kcal} kcal, P ${body.remaining.protein}g, C ${body.remaining.carbs}g, G ${body.remaining.fat}g.\nPreferencias: ${body.preferences || "ninguna"}.\n\nGenera 3-4 comidas variadas que sumen aproximadamente los macros restantes y que aprovechen lo perecedero primero.`;
 
-        const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              { role: "system", content: sys },
-              { role: "user", content: userPrompt },
-            ],
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "propose_diet",
-                  description: "Propone un plan de comidas para el día",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      meals: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            name: { type: "string" },
-                            time: { type: "string", description: "p.ej. Desayuno, Comida, Cena, Snack" },
-                            ingredients: { type: "array", items: { type: "string" } },
-                            instructions: { type: "string" },
-                            kcal: { type: "number" },
-                            protein: { type: "number" },
-                            carbs: { type: "number" },
-                            fat: { type: "number" },
-                          },
-                          required: ["name", "time", "ingredients", "instructions", "kcal", "protein", "carbs", "fat"],
-                          additionalProperties: false,
-                        },
-                      },
-                      notes: { type: "string" },
-                    },
-                    required: ["meals", "notes"],
-                    additionalProperties: false,
-                  },
+          const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              messages: [
+                { role: "system", content: sys },
+                { role: "user", content: userPrompt },
+              ],
+              response_format: {
+                type: "json_schema",
+                json_schema: {
+                  name: "diet_plan",
+                  strict: true,
+                  schema: dietPlanSchema,
                 },
               },
-            ],
-            tool_choice: { type: "function", function: { name: "propose_diet" } },
-          }),
-        });
+            }),
+          });
 
-        if (!upstream.ok) {
-          if (upstream.status === 429) return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
-          if (upstream.status === 402) return json({ error: "Sin créditos en Lovable AI. Añade fondos en Ajustes." }, 402);
-          return json({ error: `Error IA (${upstream.status})` }, 500);
-        }
+          if (!upstream.ok) {
+            if (upstream.status === 429)
+              return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
+            if (upstream.status === 401)
+              return json({ error: "Configuración OpenAI inválida" }, 500);
+            if (upstream.status === 402)
+              return json({ error: "Créditos OpenAI insuficientes" }, 402);
+            return json({ error: `Error OpenAI (${upstream.status})` }, 500);
+          }
 
-        const data = await upstream.json();
-        const call = data.choices?.[0]?.message?.tool_calls?.[0];
-        if (!call) return json({ error: "Sin respuesta de la IA" }, 500);
-        try {
-          const args = JSON.parse(call.function.arguments);
-          return json(args);
-        } catch {
-          return json({ error: "Respuesta IA no parseable" }, 500);
+          const data = await readJson(upstream);
+          if (!data) return json({ error: "Respuesta IA vacía" }, 502);
+          const content = getMessageContent(data);
+          if (!content) return json({ error: "Sin respuesta de la IA" }, 500);
+          try {
+            const args = JSON.parse(content);
+            return json(args);
+          } catch {
+            return json({ error: "Respuesta IA no parseable" }, 500);
+          }
+        } catch (error) {
+          console.error("[generate-diet]", error);
+          return json({ error: "Error al generar dieta" }, 500);
         }
       },
     },
   },
 });
+
+async function readJson(response: Response): Promise<unknown | null> {
+  const text = await response.text();
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function getMessageContent(data: unknown): string | null {
+  const choices = getRecord(data)?.choices;
+  if (!Array.isArray(choices)) return null;
+  const firstChoice = getRecord(choices[0]);
+  const message = getRecord(firstChoice?.message);
+  const content = message?.content;
+  return typeof content === "string" ? content : null;
+}
+
+function getRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {

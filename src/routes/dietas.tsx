@@ -35,6 +35,30 @@ interface Draft {
   savedId?: string;
 }
 
+async function readJsonResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text.trim()) return null;
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(response.ok ? "Respuesta no válida del servidor" : "Error del servidor al generar dieta");
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Respuesta JSON inválida del servidor");
+  }
+}
+
+function getResponseError(data: unknown): string | null {
+  if (data && typeof data === "object" && "error" in data) {
+    const error = (data as { error?: unknown }).error;
+    if (typeof error === "string" && error.trim()) return error;
+  }
+  return null;
+}
+
 function loadDraft(): Draft | null {
   if (typeof window === "undefined") return null;
   try {
@@ -112,9 +136,9 @@ function Diets() {
           preferences,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al generar dieta");
-      setPlan(data);
+      const data = await readJsonResponse(res);
+      if (!res.ok) throw new Error(getResponseError(data) ?? "Error al generar dieta");
+      setPlan(data as { meals: DietMeal[]; notes: string });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
