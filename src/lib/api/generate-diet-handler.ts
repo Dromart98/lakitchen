@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireUser } from "../api-auth";
+import { requireUser } from "../api-auth.js";
 
 const macroSchema = z.object({
   kcal: z.number().min(0).max(20000),
