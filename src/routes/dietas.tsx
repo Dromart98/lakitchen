@@ -60,6 +60,10 @@ function getResponseError(data: unknown): string | null {
   return null;
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
 function loadDraft(): Draft | null {
   if (typeof window === "undefined") return null;
   try {
@@ -141,7 +145,10 @@ function Diets() {
         }),
       });
       const data = await readJsonResponse(res);
-      if (!res.ok) throw new Error(getResponseError(data) ?? "Error al generar dieta");
+      if (!res.ok) {
+        if (res.status === 405) throw new Error("Método no permitido al generar dieta. Recarga e inténtalo de nuevo.");
+        throw new Error(getResponseError(data) ?? "Error al generar dieta");
+      }
       setPlan(data as { meals: DietMeal[]; notes: string });
     } catch (e) {
       setError(isAbortError(e) ? "La generación está tardando demasiado. Inténtalo de nuevo." : e instanceof Error ? e.message : "Error desconocido");

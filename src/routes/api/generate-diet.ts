@@ -29,6 +29,8 @@ const bodySchema = z.object({
     .transform((s) => (s ?? "").replace(/[\r\n\t`]+/g, " ").slice(0, 500)),
 });
 
+const OPENAI_TIMEOUT_MS = 30000;
+
 const dietPlanSchema = {
   type: "object",
   properties: {
@@ -68,13 +70,18 @@ const dietPlanSchema = {
 export const Route = createFileRoute("/api/generate-diet")({
   server: {
     handlers: {
+      GET: () => methodNotAllowed(),
+      PUT: () => methodNotAllowed(),
+      PATCH: () => methodNotAllowed(),
+      DELETE: () => methodNotAllowed(),
+      OPTIONS: () => methodNotAllowed(),
       POST: async ({ request }) => {
         try {
           const auth = await requireUser(request);
           if (auth instanceof Response) return auth;
 
           const key = process.env.OPENAI_API_KEY;
-          if (!key) return json({ error: "Missing OpenAI API configuration" }, 500);
+          if (!key) return json({ error: "Missing OpenAI API configuration", code: "missing_openai_key" }, 500);
           let raw: unknown;
           try {
             raw = await request.json();
@@ -103,27 +110,43 @@ REGLAS IMPORTANTES:
               "\n",
             )}\n\nObjetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.\nLo que falta consumir hoy: ${body.remaining.kcal} kcal, P ${body.remaining.protein}g, C ${body.remaining.carbs}g, G ${body.remaining.fat}g.\nPreferencias: ${body.preferences || "ninguna"}.\n\nGenera 3-4 comidas variadas que sumen aproximadamente los macros restantes y que aprovechen lo perecedero primero.`;
 
-          const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "gpt-4o-mini",
-              messages: [
-                { role: "system", content: sys },
-                { role: "user", content: userPrompt },
-              ],
-              response_format: {
-                type: "json_schema",
-                json_schema: {
-                  name: "diet_plan",
-                  strict: true,
-                  schema: dietPlanSchema,
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+          let upstream: Response;
+          try {
+            upstream = await fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+              signal: controller.signal,
+              body: JSON.stringify({
+                model: "gpt-4o-mini",
+                messages: [
+                  { role: "system", content: sys },
+                  { role: "user", content: userPrompt },
+                ],
+                response_format: {
+                  type: "json_schema",
+                  json_schema: {
+                    name: "diet_plan",
+                    strict: true,
+                    schema: dietPlanSchema,
+                  },
                 },
-              },
-            }),
-          });
+              }),
+            });
+          } catch (error) {
+            if (isAbortError(error)) {
+              console.warn("[generate-diet] OpenAI request timed out", { code: "openai_timeout" });
+              return json({ error: "OpenAI request timed out", code: "openai_timeout" }, 504);
+            }
+            console.error("[generate-diet] OpenAI request failed", getSafeErrorLog(error));
+            return json({ error: "Error al conectar con OpenAI", code: "openai_network_error" }, 502);
+          } finally {
+            clearTimeout(timeoutId);
+          }
 
           if (!upstream.ok) {
+            console.warn("[generate-diet] OpenAI returned error", { status: upstream.status });
             if (upstream.status === 429)
               return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
             if (upstream.status === 401)
@@ -134,17 +157,24 @@ REGLAS IMPORTANTES:
           }
 
           const data = await readJson(upstream);
-          if (!data) return json({ error: "Respuesta IA vacía" }, 502);
+          if (!data) {
+            console.warn("[generate-diet] OpenAI returned an empty or invalid JSON response");
+            return json({ error: "Respuesta IA vacía" }, 502);
+          }
           const content = getMessageContent(data);
-          if (!content) return json({ error: "Sin respuesta de la IA" }, 500);
+          if (!content) {
+            console.warn("[generate-diet] OpenAI response did not include message content");
+            return json({ error: "Sin respuesta de la IA" }, 500);
+          }
           try {
             const args = JSON.parse(content);
             return json(args);
-          } catch {
+          } catch (error) {
+            console.warn("[generate-diet] OpenAI content was not parseable JSON", getSafeErrorLog(error));
             return json({ error: "Respuesta IA no parseable" }, 500);
           }
         } catch (error) {
-          console.error("[generate-diet]", error);
+          console.error("[generate-diet] Unexpected error", getSafeErrorLog(error));
           return json({ error: "Error al generar dieta" }, 500);
         }
       },
@@ -173,6 +203,19 @@ function getMessageContent(data: unknown): string | null {
 
 function getRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+function getSafeErrorLog(error: unknown): { name?: string; message?: string } {
+  if (error instanceof Error) return { name: error.name, message: error.message };
+  return { message: String(error) };
+}
+
+function methodNotAllowed() {
+  return json({ error: "Method not allowed", code: "method_not_allowed" }, 405);
 }
 
 function json(data: unknown, status = 200) {
