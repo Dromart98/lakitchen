@@ -17,9 +17,17 @@ export function useShoppingList() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+
     const { data } = await supabase
       .from("shopping_list")
       .select("*")
+      .eq("user_id", u.user.id)
       .order("done", { ascending: true })
       .order("created_at", { ascending: false });
     setItems((data as ShoppingItem[] | null) ?? []);
@@ -54,17 +62,23 @@ export function useShoppingList() {
   }
 
   async function toggleDone(id: string, done: boolean) {
-    await supabase.from("shopping_list").update({ done }).eq("id", id);
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return;
+    await supabase.from("shopping_list").update({ done }).eq("id", id).eq("user_id", u.user.id);
     refresh();
   }
 
   async function remove(id: string) {
-    await supabase.from("shopping_list").delete().eq("id", id);
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return;
+    await supabase.from("shopping_list").delete().eq("id", id).eq("user_id", u.user.id);
     refresh();
   }
 
   async function clearDone() {
-    await supabase.from("shopping_list").delete().eq("done", true);
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return;
+    await supabase.from("shopping_list").delete().eq("done", true).eq("user_id", u.user.id);
     refresh();
   }
 
