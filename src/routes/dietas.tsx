@@ -26,6 +26,7 @@ export const Route = createFileRoute("/dietas")({
 type Tab = "generate" | "saved";
 
 const DRAFT_KEY = "lakitchen.dietas.draft";
+const GENERATE_DIET_TIMEOUT_MS = 45000;
 
 interface Draft {
   meals: DietMeal[];
@@ -33,6 +34,34 @@ interface Draft {
   title: string;
   preferences: string;
   savedId?: string;
+}
+
+async function readJsonResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text.trim()) return null;
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(response.ok ? "Respuesta no válida del servidor" : "Error del servidor al generar dieta");
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Respuesta JSON inválida del servidor");
+  }
+}
+
+function getResponseError(data: unknown): string | null {
+  if (data && typeof data === "object" && "error" in data) {
+    const error = (data as { error?: unknown }).error;
+    if (typeof error === "string" && error.trim()) return error;
+  }
+  return null;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
 }
 
 function loadDraft(): Draft | null {
@@ -101,10 +130,13 @@ function Diets() {
     setError(null);
     setPlan(null);
     setSavedId(null);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), GENERATE_DIET_TIMEOUT_MS);
     try {
       const res = await authFetch("/api/generate-diet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           products: products.map((p) => ({ name: p.name, location: p.location, quantity: p.quantity, unit: p.unit })),
           goals,
@@ -112,12 +144,16 @@ function Diets() {
           preferences,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al generar dieta");
-      setPlan(data);
+      const data = await readJsonResponse(res);
+      if (!res.ok) {
+        if (res.status === 405) throw new Error("Método no permitido al generar dieta. Recarga e inténtalo de nuevo.");
+        throw new Error(getResponseError(data) ?? "Error al generar dieta");
+      }
+      setPlan(data as { meals: DietMeal[]; notes: string });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error desconocido");
+      setError(isAbortError(e) ? "La generación está tardando demasiado. Inténtalo de nuevo." : e instanceof Error ? e.message : "Error desconocido");
     } finally {
+      window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }

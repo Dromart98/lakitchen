@@ -25,9 +25,16 @@ export function useDietPlans() {
   const [plans, setPlans] = useState<SavedDietPlan[]>([]);
 
   const refresh = useCallback(async () => {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) {
+      setPlans([]);
+      return;
+    }
+
     const { data } = await supabase
       .from("diet_plans")
       .select("*")
+      .eq("user_id", u.user.id)
       .order("created_at", { ascending: false });
     setPlans(((data ?? []) as unknown) as SavedDietPlan[]);
   }, []);
@@ -51,7 +58,9 @@ export function useDietPlans() {
   }
 
   async function remove(id: string) {
-    await supabase.from("diet_plans").delete().eq("id", id);
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return;
+    await supabase.from("diet_plans").delete().eq("id", id).eq("user_id", u.user.id);
     refresh();
   }
 
