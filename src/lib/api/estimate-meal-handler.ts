@@ -1,4 +1,4 @@
-import { requireUser } from "../api-auth";
+import { requireUser } from "../api-auth.js";
 
 export async function handleEstimateMealRequest(request: Request): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed();

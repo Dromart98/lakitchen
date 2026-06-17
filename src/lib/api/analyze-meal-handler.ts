@@ -1,4 +1,4 @@
-import { requireUser } from "../api-auth";
+import { requireUser } from "../api-auth.js";
 
 interface Body {
   imageBase64: string; // data URL or raw base64
