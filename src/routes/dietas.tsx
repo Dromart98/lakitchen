@@ -26,6 +26,7 @@ export const Route = createFileRoute("/dietas")({
 type Tab = "generate" | "saved";
 
 const DRAFT_KEY = "lakitchen.dietas.draft";
+const GENERATE_DIET_TIMEOUT_MS = 45000;
 
 interface Draft {
   meals: DietMeal[];
@@ -125,10 +126,13 @@ function Diets() {
     setError(null);
     setPlan(null);
     setSavedId(null);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), GENERATE_DIET_TIMEOUT_MS);
     try {
       const res = await authFetch("/api/generate-diet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           products: products.map((p) => ({ name: p.name, location: p.location, quantity: p.quantity, unit: p.unit })),
           goals,
@@ -140,8 +144,9 @@ function Diets() {
       if (!res.ok) throw new Error(getResponseError(data) ?? "Error al generar dieta");
       setPlan(data as { meals: DietMeal[]; notes: string });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error desconocido");
+      setError(isAbortError(e) ? "La generación está tardando demasiado. Inténtalo de nuevo." : e instanceof Error ? e.message : "Error desconocido");
     } finally {
+      window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }
