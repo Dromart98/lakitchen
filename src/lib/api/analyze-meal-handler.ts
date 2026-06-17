@@ -1,93 +1,154 @@
-import { requireUser } from "../api-auth";
+import { requireUser } from "../api-auth.js";
 
 interface Body {
   imageBase64: string; // data URL or raw base64
 }
 
-const MAX_B64_BYTES = 10 * 1024 * 1024; // ~7.5 MB binary
+const OPENAI_TIMEOUT_MS = 45000;
+const MAX_IMAGE_BASE64_LENGTH = 4 * 1024 * 1024;
+const ALLOWED_DATA_URL_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/i;
 
 export async function handleAnalyzeMealRequest(request: Request): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed();
 
-  const auth = await requireUser(request);
-  if (auth instanceof Response) return auth;
-
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
-  let body: Body;
   try {
-    body = await request.json();
-  } catch {
-    return json({ error: "JSON inválido" }, 400);
+    const auth = await requireUser(request);
+    if (auth instanceof Response) return auth;
+
+    const key = process.env.OPENAI_API_KEY;
+    if (!key)
+      return json({ error: "Missing OpenAI API configuration", code: "missing_openai_key" }, 500);
+
+    let body: Body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "JSON inválido" }, 400);
+    }
+
+    const validation = validateImageInput(body.imageBase64);
+    if (validation instanceof Response) return validation;
+    const dataUrl = validation;
+    const imageSize = getApproxImageSize(dataUrl);
+    console.info("[analyze-meal] Received image", {
+      approxBytes: imageSize.approxBytes,
+      mimeType: imageSize.mimeType,
+    });
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+    let upstream: Response;
+    const startedAt = Date.now();
+    try {
+      upstream = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify(buildPayload(dataUrl)),
+      });
+      console.info("[analyze-meal] OpenAI completed", {
+        status: upstream.status,
+        durationMs: Date.now() - startedAt,
+      });
+    } catch (error) {
+      if (isAbortError(error)) {
+        console.warn("[analyze-meal] OpenAI request timed out", {
+          code: "openai_timeout",
+          timeoutMs: OPENAI_TIMEOUT_MS,
+          approxImageBytes: imageSize.approxBytes,
+        });
+        return json({ error: "OpenAI request timed out", code: "openai_timeout" }, 504);
+      }
+      console.error("[analyze-meal] OpenAI request failed", getSafeErrorLog(error));
+      return json({ error: "Error al conectar con OpenAI", code: "openai_network_error" }, 502);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!upstream.ok) {
+      console.warn("[analyze-meal] OpenAI returned error", { status: upstream.status });
+      if (upstream.status === 429)
+        return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
+      if (upstream.status === 401) return json({ error: "Configuración OpenAI inválida" }, 500);
+      if (upstream.status === 413)
+        return json({ error: "La imagen es demasiado grande. Usa una foto más ligera." }, 413);
+      return json({ error: `Error OpenAI (${upstream.status})` }, 500);
+    }
+
+    const data = await readJson(upstream);
+    if (!data) {
+      console.warn("[analyze-meal] OpenAI returned an empty or invalid JSON response");
+      return json({ error: "Respuesta IA vacía" }, 502);
+    }
+
+    const args = getToolArguments(data);
+    if (!args) return json({ error: "Sin respuesta de la IA" }, 500);
+
+    try {
+      const parsed = JSON.parse(args);
+      return json(normalize(parsed));
+    } catch (error) {
+      console.warn("[analyze-meal] OpenAI tool arguments were not parseable JSON", getSafeErrorLog(error));
+      return json({ error: "Respuesta IA no parseable" }, 500);
+    }
+  } catch (error) {
+    console.error("[analyze-meal] Unexpected error", getSafeErrorLog(error));
+    return json({ error: "Error al analizar la imagen" }, 500);
   }
-  if (!body.imageBase64 || typeof body.imageBase64 !== "string") {
+}
+
+function validateImageInput(imageBase64: unknown): string | Response {
+  if (!imageBase64 || typeof imageBase64 !== "string") {
     return json({ error: "Falta imageBase64" }, 400);
   }
-  if (body.imageBase64.length > MAX_B64_BYTES) {
-    return json({ error: "Imagen demasiado grande" }, 413);
+
+  const value = imageBase64.trim();
+  if (value.length > MAX_IMAGE_BASE64_LENGTH) {
+    return json({ error: "La imagen es demasiado grande. Usa una foto más ligera." }, 413);
   }
-  const isDataUrl = body.imageBase64.startsWith("data:image/");
-  if (!isDataUrl && !/^[A-Za-z0-9+/=\s]+$/.test(body.imageBase64.slice(0, 200))) {
+
+  if (value.startsWith("data:")) {
+    if (!ALLOWED_DATA_URL_PATTERN.test(value)) {
+      return json({ error: "Formato de imagen no válido" }, 400);
+    }
+    return value;
+  }
+
+  if (!/^[A-Za-z0-9+/=\s]+$/.test(value.slice(0, 500))) {
     return json({ error: "Formato de imagen no válido" }, 400);
   }
 
-  const dataUrl = isDataUrl ? body.imageBase64 : `data:image/jpeg;base64,${body.imageBase64}`;
+  return `data:image/jpeg;base64,${value.replace(/\s+/g, "")}`;
+}
 
-  // Modelos en orden de preferencia: pro para más precisión, fallback a flash si hay rate-limit.
-  const models = ["google/gemini-2.5-pro", "google/gemini-2.5-flash"];
-  let upstream: Response | null = null;
-  let lastStatus = 0;
-  for (const model of models) {
-    upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify(buildPayload(model, dataUrl)),
-    });
-    if (upstream.ok) break;
-    lastStatus = upstream.status;
-    if (upstream.status !== 429 && upstream.status !== 503) break;
-  }
-
-  if (!upstream || !upstream.ok) {
-    if (lastStatus === 429)
-      return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
-    if (lastStatus === 402)
-      return json({ error: "Sin créditos en Lovable AI. Añade fondos." }, 402);
-    const t = upstream ? await upstream.text() : "";
-    console.error("analyze-meal upstream error", lastStatus, t);
-    return json({ error: `Error IA (${lastStatus})` }, 500);
-  }
-
-  const data = await upstream.json();
-  const call = data.choices?.[0]?.message?.tool_calls?.[0];
-  if (!call) return json({ error: "Sin respuesta de la IA" }, 500);
-  try {
-    const parsed = JSON.parse(call.function.arguments);
-    return json(normalize(parsed));
-  } catch {
-    return json({ error: "Respuesta IA no parseable" }, 500);
-  }
+function getApproxImageSize(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.*)$/i);
+  const mimeType = match?.[1] ?? "image/jpeg";
+  const base64 = match?.[2] ?? dataUrl;
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+  const approxBytes = Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
+  return { approxBytes, mimeType };
 }
 
 function methodNotAllowed() {
   return json({ error: "Method not allowed", code: "method_not_allowed" }, 405);
 }
 
-function buildPayload(model: string, dataUrl: string) {
+function buildPayload(dataUrl: string) {
   return {
-    model,
+    model: "gpt-4o-mini",
     messages: [
       {
         role: "system",
         content:
-          "Eres un nutricionista experto en estimación visual de comidas. Analiza la foto con atención: identifica únicamente alimentos que veas con claridad, estima el peso de cada porción en GRAMOS (o ml para líquidos) basándote en referencias visuales (plato, cubiertos, mano). NO inventes alimentos. Si la imagen no es una comida o no se distingue, devuelve items vacío y confidence 'baja'. Usa valores nutricionales medios por 100g del alimento detectado y multiplica por la porción estimada. Sé conservador con kcal y macros. Devuelve totales que sean la suma exacta de los items.",
+          "Analiza fotos de comida de forma rápida. Devuelve solo una estimación breve: nombre aproximado, ingredientes visibles, calorías y macros totales. No inventes alimentos; si no se ve claro, usa confidence baja y explica la incertidumbre en notes.",
       },
       {
         role: "user",
         content: [
           {
             type: "text",
-            text: "Analiza esta comida. Indica nombre del plato, cada alimento con su porción estimada en gramos, y el desglose de kcal/proteína/carbohidratos/grasas.",
+            text: "Estima la comida de la imagen: nombre, ingredientes visibles, kcal, proteína, carbohidratos, grasas y una nota breve de incertidumbre.",
           },
           { type: "image_url", image_url: { url: dataUrl } },
         ],
@@ -112,14 +173,11 @@ function buildPayload(model: string, dataUrl: string) {
                   type: "object",
                   properties: {
                     food: { type: "string", description: "Nombre del alimento concreto" },
-                    portion: {
-                      type: "string",
-                      description: "Porción estimada, ej. '150g', '1 unidad', '200ml'",
-                    },
-                    kcal: { type: "number" },
-                    protein: { type: "number" },
-                    carbs: { type: "number" },
-                    fat: { type: "number" },
+                    portion: { type: "string", description: "Opcional, breve si se puede estimar" },
+                    kcal: { type: "number", description: "0 si no se estima por ingrediente" },
+                    protein: { type: "number", description: "0 si no se estima por ingrediente" },
+                    carbs: { type: "number", description: "0 si no se estima por ingrediente" },
+                    fat: { type: "number", description: "0 si no se estima por ingrediente" },
                   },
                   required: ["food", "portion", "kcal", "protein", "carbs", "fat"],
                   additionalProperties: false,
@@ -146,7 +204,46 @@ function buildPayload(model: string, dataUrl: string) {
       },
     ],
     tool_choice: { type: "function", function: { name: "report_meal" } },
+    max_tokens: 500,
   };
+}
+
+async function readJson(response: Response): Promise<unknown | null> {
+  const text = await response.text();
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function getToolArguments(data: unknown): string | null {
+  const choices = getRecord(data)?.choices;
+  if (!Array.isArray(choices)) return null;
+  const firstChoice = getRecord(choices[0]);
+  const message = getRecord(firstChoice?.message);
+  const toolCalls = message?.tool_calls;
+  if (!Array.isArray(toolCalls)) return null;
+  const firstCall = getRecord(toolCalls[0]);
+  const fn = getRecord(firstCall?.function);
+  return typeof fn?.arguments === "string" ? fn.arguments : null;
+}
+
+function getRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError")
+  );
+}
+
+function getSafeErrorLog(error: unknown): { name?: string; message?: string } {
+  if (error instanceof Error) return { name: error.name, message: error.message };
+  return { message: String(error) };
 }
 
 interface MealItem {

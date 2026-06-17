@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireUser } from "../api-auth";
+import { requireUser } from "../api-auth.js";
 
 const macroSchema = z.object({
   kcal: z.number().min(0).max(20000),
@@ -29,6 +29,7 @@ const bodySchema = z.object({
 });
 
 const OPENAI_TIMEOUT_MS = 30000;
+const MAX_PROMPT_PRODUCTS = 40;
 
 const dietPlanSchema = {
   type: "object",
@@ -87,6 +88,11 @@ export async function handleGenerateDietRequest(request: Request): Promise<Respo
       return json({ error: "Datos inválidos" }, 400);
     }
     const body = parsed.data;
+    const promptProducts = preparePromptProducts(body.products);
+    if (promptProducts.length === 0) {
+      return json({ error: "No hay productos válidos para generar la dieta" }, 400);
+    }
+    const omittedProducts = body.products.length - promptProducts.length;
 
     const sys = `Eres un nutricionista práctico y creativo. Crea un plan de comidas para HOY usando PRIORITARIAMENTE los productos disponibles del usuario.
 
@@ -98,11 +104,22 @@ REGLAS IMPORTANTES:
 - Cada comida debe ser realista, equilibrada y respetar las preferencias.
 - Devuelve SOLO JSON con la forma exacta del schema diet_plan.`;
 
-    const userPrompt = `Productos disponibles (úsalos prioritariamente, sobre todo los frescos/perecederos de nevera):\n${body.products
-      .map((p) => `- [${p.location}] ${p.name}: ${p.quantity}${p.unit}`)
-      .join(
-        "\n",
-      )}\n\nObjetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.\nLo que falta consumir hoy: ${body.remaining.kcal} kcal, P ${body.remaining.protein}g, C ${body.remaining.carbs}g, G ${body.remaining.fat}g.\nPreferencias: ${body.preferences || "ninguna"}.\n\nGenera 3-4 comidas variadas que sumen aproximadamente los macros restantes y que aprovechen lo perecedero primero.`;
+    const productLines = promptProducts
+      .map((p) => `- [${p.location}] ${p.name}: ${formatQuantity(p.quantity)}${p.unit}`)
+      .join("\n");
+    const omittedNote =
+      omittedProducts > 0
+        ? `\nNota: se omitieron ${omittedProducts} productos menos prioritarios para mantener el prompt breve.`
+        : "";
+
+    const userPrompt = `Productos disponibles (úsalos prioritariamente, sobre todo los frescos/perecederos de nevera):
+${productLines}${omittedNote}
+
+Objetivos diarios: ${body.goals.kcal} kcal, P ${body.goals.protein}g, C ${body.goals.carbs}g, G ${body.goals.fat}g.
+Lo que falta consumir hoy: ${body.remaining.kcal} kcal, P ${body.remaining.protein}g, C ${body.remaining.carbs}g, G ${body.remaining.fat}g.
+Preferencias: ${body.preferences || "ninguna"}.
+
+Genera 3-4 comidas variadas que sumen aproximadamente los macros restantes y que aprovechen lo perecedero primero.`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
@@ -171,6 +188,51 @@ REGLAS IMPORTANTES:
   }
 }
 
+type PromptProduct = {
+  name: string;
+  location: string;
+  quantity: number;
+  unit: string;
+};
+
+function preparePromptProducts(products: PromptProduct[]): PromptProduct[] {
+  const byKey = new Map<string, PromptProduct>();
+
+  for (const product of products) {
+    const name = product.name.trim().replace(/[\r\n\t`]+/g, " ").slice(0, 80);
+    const quantity = Number(product.quantity);
+    const location = product.location.trim().slice(0, 30);
+    const unit = product.unit.trim().slice(0, 12);
+    if (!name || !Number.isFinite(quantity) || quantity <= 0 || !unit) continue;
+
+    const key = `${name.toLocaleLowerCase("es-ES")}|${location}|${unit}`;
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.quantity = Math.min(100000, existing.quantity + quantity);
+    } else {
+      byKey.set(key, { name, location, quantity: Math.min(100000, quantity), unit });
+    }
+  }
+
+  const locationRank = new Map([
+    ["nevera", 0],
+    ["despensa", 1],
+    ["congelador", 2],
+  ]);
+
+  return [...byKey.values()]
+    .sort(
+      (a, b) =>
+        (locationRank.get(a.location) ?? 3) - (locationRank.get(b.location) ?? 3) ||
+        a.name.localeCompare(b.name, "es"),
+    )
+    .slice(0, MAX_PROMPT_PRODUCTS);
+}
+
+function formatQuantity(quantity: number): string {
+  return Number.isInteger(quantity) ? String(quantity) : quantity.toFixed(2).replace(/\.?0+$/, "");
+}
+
 async function readJson(response: Response): Promise<unknown | null> {
   const text = await response.text();
   if (!text.trim()) return null;
@@ -195,7 +257,10 @@ function getRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError")
+  );
 }
 
 function getSafeErrorLog(error: unknown): { name?: string; message?: string } {

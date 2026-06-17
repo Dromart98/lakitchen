@@ -1,6 +1,6 @@
 // Comprime una imagen (data URL) a JPEG redimensionando a un lado máximo.
 // Reduce errores 413 y mejora la fiabilidad del análisis IA.
-export async function compressImage(dataUrl: string, maxSide = 1600, quality = 0.85): Promise<string> {
+export async function compressImage(dataUrl: string, maxSide = 1024, quality = 0.75): Promise<string> {
   if (typeof window === "undefined") return dataUrl;
   const img = await loadImage(dataUrl);
   const { width, height } = img;

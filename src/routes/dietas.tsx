@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { todayKey, uid, useGoals, useMeals, useProducts } from "@/lib/store";
+import { todayKey, uid, useGoals, useMeals, useProducts, type Location, type Product, type Unit } from "@/lib/store";
 import { ChefHat, Check, Copy, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { authFetch } from "@/lib/auth-fetch";
 import { planToText, useDietPlans, type DietMeal, type SavedDietPlan } from "@/lib/dietPlans";
@@ -27,6 +27,14 @@ type Tab = "generate" | "saved";
 
 const DRAFT_KEY = "lakitchen.dietas.draft";
 const GENERATE_DIET_TIMEOUT_MS = 45000;
+const MAX_DIET_PRODUCTS = 40;
+
+type DietPromptProduct = {
+  name: string;
+  location: Location;
+  quantity: number;
+  unit: Unit;
+};
 
 interface Draft {
   meals: DietMeal[];
@@ -62,6 +70,58 @@ function getResponseError(data: unknown): string | null {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
+}
+
+function isValidLocation(location: string): location is Location {
+  return ["despensa", "nevera", "congelador"].includes(location);
+}
+
+function isValidUnit(unit: string): unit is Unit {
+  return ["ud", "g", "kg", "ml", "l"].includes(unit);
+}
+
+function prepareDietProducts(products: Product[]): DietPromptProduct[] {
+  const byKey = new Map<string, DietPromptProduct>();
+
+  for (const product of products) {
+    const name = product.name.trim().replace(/[\r\n\t`]+/g, " ").slice(0, 80);
+    const quantity = Number(product.quantity);
+    if (!name || !Number.isFinite(quantity) || quantity <= 0) continue;
+    if (!isValidLocation(product.location) || !isValidUnit(product.unit)) continue;
+
+    const key = `${name.toLocaleLowerCase("es-ES")}|${product.location}|${product.unit}`;
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.quantity = Math.min(100000, existing.quantity + quantity);
+    } else {
+      byKey.set(key, { name, location: product.location, quantity, unit: product.unit });
+    }
+  }
+
+  const locationRank: Record<Location, number> = { nevera: 0, despensa: 1, congelador: 2 };
+  return [...byKey.values()]
+    .sort(
+      (a, b) =>
+        locationRank[a.location] - locationRank[b.location] || a.name.localeCompare(b.name, "es"),
+    )
+    .slice(0, MAX_DIET_PRODUCTS);
+}
+
+function getDietGenerationError(response: Response, data: unknown): string {
+  if (
+    response.status === 504 ||
+    (data && typeof data === "object" && (data as { code?: unknown }).code === "openai_timeout")
+  ) {
+    return "La generación está tardando demasiado. Inténtalo de nuevo.";
+  }
+  if (response.status === 405) return "Método no permitido al generar dieta. Recarga e inténtalo de nuevo.";
+  if (response.status === 401) return "Tu sesión ha caducado. Inicia sesión de nuevo.";
+  if (response.status === 429) return "Límite de uso alcanzado. Inténtalo más tarde.";
+  return getResponseError(data) ?? "Error al generar dieta";
+}
+
+function createTimeoutError() {
+  return new DOMException("Diet generation timed out", "AbortError");
 }
 
 function loadDraft(): Draft | null {
@@ -126,34 +186,46 @@ function Diets() {
   };
 
   async function generate() {
+    const dietProducts = prepareDietProducts(products);
+    if (dietProducts.length === 0) {
+      setError("Añade al menos un producto válido al inventario antes de generar una dieta.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setPlan(null);
     setSavedId(null);
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), GENERATE_DIET_TIMEOUT_MS);
+    let timeoutId: number | undefined;
     try {
-      const res = await authFetch("/api/generate-diet", {
+      const request = authFetch("/api/generate-diet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          products: products.map((p) => ({ name: p.name, location: p.location, quantity: p.quantity, unit: p.unit })),
+          products: dietProducts,
           goals,
           remaining,
           preferences,
         }),
       });
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutId = window.setTimeout(() => {
+          controller.abort();
+          reject(createTimeoutError());
+        }, GENERATE_DIET_TIMEOUT_MS);
+      });
+      const res = await Promise.race([request, timeout]);
       const data = await readJsonResponse(res);
       if (!res.ok) {
-        if (res.status === 405) throw new Error("Método no permitido al generar dieta. Recarga e inténtalo de nuevo.");
-        throw new Error(getResponseError(data) ?? "Error al generar dieta");
+        throw new Error(getDietGenerationError(res, data));
       }
       setPlan(data as { meals: DietMeal[]; notes: string });
     } catch (e) {
       setError(isAbortError(e) ? "La generación está tardando demasiado. Inténtalo de nuevo." : e instanceof Error ? e.message : "Error desconocido");
     } finally {
-      window.clearTimeout(timeoutId);
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }
