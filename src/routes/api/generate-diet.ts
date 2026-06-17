@@ -81,7 +81,7 @@ export const Route = createFileRoute("/api/generate-diet")({
           if (auth instanceof Response) return auth;
 
           const key = process.env.OPENAI_API_KEY;
-          if (!key) return json({ error: "Missing OpenAI API configuration" }, 500);
+          if (!key) return json({ error: "Missing OpenAI API configuration", code: "missing_openai_key" }, 500);
           let raw: unknown;
           try {
             raw = await request.json();
