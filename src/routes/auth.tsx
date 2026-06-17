@@ -273,18 +273,6 @@ function AuthPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <input
-                id="auth-password"
-                name="password"
-                type="password"
-                required
-                minLength={6}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={inp}
-                placeholder="••••••••"
-              />
             </Field>
 
             {error && <p className="text-sm text-destructive">{error}</p>}
