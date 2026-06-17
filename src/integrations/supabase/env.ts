@@ -1,33 +1,46 @@
 const FALLBACK_SUPABASE_URL = "https://raxpfaawnzhfxxaoqmnw.supabase.co";
 const FALLBACK_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_WLFC7hOmjtVz1VcpMmNBTQ_l1Eb1Bje";
 
+type SupabaseEnv = Record<string, string | undefined>;
+
+function getRuntimeEnv(): SupabaseEnv {
+  const viteEnv = import.meta.env;
+  if (viteEnv) return viteEnv;
+
+  if (typeof process !== "undefined") return process.env;
+
+  return {};
+}
+
+const runtimeEnv = getRuntimeEnv();
+
 const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL ||
-  import.meta.env.NEXT_PUBLIC_SUPABASE_URL ||
+  runtimeEnv.VITE_SUPABASE_URL ||
+  runtimeEnv.NEXT_PUBLIC_SUPABASE_URL ||
   FALLBACK_SUPABASE_URL;
 
 const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  runtimeEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  runtimeEnv.VITE_SUPABASE_ANON_KEY ||
+  runtimeEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   FALLBACK_SUPABASE_PUBLISHABLE_KEY;
 
 const SUPABASE_PROJECT_ID =
-  import.meta.env.VITE_SUPABASE_PROJECT_ID ||
+  runtimeEnv.VITE_SUPABASE_PROJECT_ID ||
   getProjectIdFromUrl(SUPABASE_URL) ||
   "raxpfaawnzhfxxaoqmnw";
 
 const SUPABASE_ENV_SOURCE = {
-  url: import.meta.env.VITE_SUPABASE_URL
+  url: runtimeEnv.VITE_SUPABASE_URL
     ? "VITE_SUPABASE_URL"
-    : import.meta.env.NEXT_PUBLIC_SUPABASE_URL
+    : runtimeEnv.NEXT_PUBLIC_SUPABASE_URL
       ? "NEXT_PUBLIC_SUPABASE_URL"
       : "fallback",
-  key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  key: runtimeEnv.VITE_SUPABASE_PUBLISHABLE_KEY
     ? "VITE_SUPABASE_PUBLISHABLE_KEY"
-    : import.meta.env.VITE_SUPABASE_ANON_KEY
+    : runtimeEnv.VITE_SUPABASE_ANON_KEY
       ? "VITE_SUPABASE_ANON_KEY"
-      : import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      : runtimeEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY
         ? "NEXT_PUBLIC_SUPABASE_ANON_KEY"
         : "fallback",
 };

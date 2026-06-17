@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
-import { getSupabaseClientEnv } from "@/integrations/supabase/env";
+import type { Database } from "../integrations/supabase/types.js";
+import { getSupabaseClientEnv } from "../integrations/supabase/env.js";
 
 /**
  * Verify the Authorization: Bearer token on an incoming request.
