@@ -1,10 +1,14 @@
 import { requireUser } from "../api-auth.js";
+import { aiRateLimits, checkRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
 
 export async function handleEstimateMealRequest(request: Request): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed();
 
   const auth = await requireUser(request);
   if (auth instanceof Response) return auth;
+
+  const rateLimit = checkRateLimit(aiRateLimits.estimateMeal, auth.userId);
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const key = process.env.LOVABLE_API_KEY;
   if (!key) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
