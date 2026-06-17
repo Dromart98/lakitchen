@@ -22,6 +22,61 @@ export const Route = createFileRoute("/foto")({
   component: PhotoAnalyze,
 });
 
+
+const ANALYZE_MEAL_TIMEOUT_MS = 45000;
+const MAX_UPLOAD_IMAGE_BYTES = 12 * 1024 * 1024;
+const MAX_ANALYZE_DATA_URL_LENGTH = 8 * 1024 * 1024;
+
+async function readJsonResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text.trim()) return null;
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(response.ok ? "Respuesta no válida del servidor" : "Error del servidor al analizar la foto");
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Respuesta JSON inválida del servidor");
+  }
+}
+
+function getResponseError(data: unknown): string | null {
+  if (data && typeof data === "object" && "error" in data) {
+    const error = (data as { error?: unknown }).error;
+    if (typeof error === "string" && error.trim()) return error;
+  }
+  return null;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+function createTimeoutError() {
+  return new DOMException("Meal photo analysis timed out", "AbortError");
+}
+
+function getAnalyzeError(response: Response, data: unknown): string {
+  if (
+    response.status === 504 ||
+    (data && typeof data === "object" && (data as { code?: unknown }).code === "openai_timeout")
+  ) {
+    return "El análisis está tardando demasiado. Inténtalo de nuevo.";
+  }
+  if (response.status === 413) return "La imagen es demasiado grande. Usa una foto más ligera.";
+  if (response.status === 401) return "Tu sesión ha caducado. Inicia sesión de nuevo.";
+  if (response.status === 405) return "Método no permitido al analizar la foto. Recarga e inténtalo de nuevo.";
+  if (response.status === 429) return "Límite de uso alcanzado. Inténtalo más tarde.";
+  return getResponseError(data) ?? "Error al analizar";
+}
+
+function isValidImageFile(file: File) {
+  return file.type.startsWith("image/");
+}
+
 interface Result {
   name: string;
   items: { food: string; portion: string; kcal: number; protein: number; carbs: number; fat: number }[];
@@ -43,32 +98,65 @@ function PhotoAnalyze() {
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+
+    setResult(null);
+    setError(null);
+
+    if (!isValidImageFile(f)) {
+      setError("Formato de imagen no válido");
+      return;
+    }
+    if (f.size > MAX_UPLOAD_IMAGE_BYTES) {
+      setError("La imagen es demasiado grande. Usa una foto más ligera.");
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async () => {
-      const raw = reader.result as string;
+      const raw = typeof reader.result === "string" ? reader.result : "";
+      if (!raw.startsWith("data:image/")) {
+        setError("Formato de imagen no válido");
+        return;
+      }
       const compressed = await compressImage(raw).catch(() => raw);
+      if (compressed.length > MAX_ANALYZE_DATA_URL_LENGTH) {
+        setPreview(null);
+        setError("La imagen es demasiado grande. Usa una foto más ligera.");
+        return;
+      }
       setPreview(compressed);
-      setResult(null);
-      setError(null);
-      analyze(compressed);
+      void analyze(compressed);
     };
+    reader.onerror = () => setError("No se pudo leer la imagen");
     reader.readAsDataURL(f);
   }
 
   async function analyze(dataUrl: string) {
     setLoading(true);
+    setError(null);
+    const controller = new AbortController();
+    let timeoutId: number | undefined;
     try {
-      const res = await authFetch("/api/analyze-meal", {
+      const request = authFetch("/api/analyze-meal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({ imageBase64: dataUrl }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al analizar");
-      setResult(data);
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutId = window.setTimeout(() => {
+          controller.abort();
+          reject(createTimeoutError());
+        }, ANALYZE_MEAL_TIMEOUT_MS);
+      });
+      const res = await Promise.race([request, timeout]);
+      const data = await readJsonResponse(res);
+      if (!res.ok) throw new Error(getAnalyzeError(res, data));
+      setResult(data as Result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error desconocido");
+      setError(isAbortError(e) ? "El análisis está tardando demasiado. Inténtalo de nuevo." : e instanceof Error ? e.message : "Error desconocido");
     } finally {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }

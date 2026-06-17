@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { handleAnalyzeMealRequest } from "@/lib/api/analyze-meal-handler";
+import { handleAnalyzeMealRequest } from "../../lib/api/analyze-meal-handler.js";
 
 export const Route = createFileRoute("/api/analyze-meal")({
   server: {
