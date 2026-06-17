@@ -41,31 +41,25 @@ function AuthPage() {
   const [info, setInfo] = useState<string | null>(null);
   const busy = pendingAction !== null;
 
-
-useEffect(() => {
-  if (loading || !sessionUserId || pathname !== "/auth") {
-    return;
-  }
-
-  void navigate({ to: "/", replace: true });
-}, [loading, navigate, pathname, sessionUserId]);
-
-useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
-  const oauthError = params.get("error_description") || params.get("error");
-
-  if (oauthError) {
-      setError(getAuthErrorMessage(new Error(oauthError), "google"));
+  useEffect(() => {
+    if (loading || !sessionUserId || pathname !== "/auth") {
+      return;
     }
-  }, []);
+
+    void navigate({ to: "/", replace: true });
+  }, [loading, navigate, pathname, sessionUserId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const oauthError = params.get("error_description") || params.get("error");
 
-    if (oauthError) {
-      setError(getAuthErrorMessage(new Error(oauthError), "google"));
+    if (!oauthError) {
+      return;
     }
+
+    const provider = getPendingOAuthProvider();
+    clearPendingOAuthProvider();
+    setError(getAuthErrorMessage(new Error(oauthError), provider));
   }, []);
 
   async function submit(e: React.FormEvent) {
@@ -105,7 +99,8 @@ useEffect(() => {
     setError(null);
     setInfo(null);
     setPendingAction(provider);
-    const redirectTo = `${window.location.origin}/auth`;
+    const redirectTo = getAuthRedirectUrl();
+    savePendingOAuthProvider(provider);
     logOAuthDebug("start", { provider, redirectTo });
     try {
       const { error } = await withAuthTimeout(
@@ -118,11 +113,13 @@ useEffect(() => {
       );
 
       if (error) {
+        clearPendingOAuthProvider();
         logOAuthDebug("error", { provider, redirectTo, error });
         setError(getAuthErrorMessage(error, provider));
         setPendingAction(null);
       }
     } catch (e) {
+      clearPendingOAuthProvider();
       logOAuthDebug("exception", { provider, redirectTo, error: e });
       setError(getAuthErrorMessage(e, provider));
       setPendingAction(null);
@@ -131,10 +128,6 @@ useEffect(() => {
 
   function google() {
     void signInWithProvider("google");
-  }
-
-  function apple() {
-    void signInWithProvider("apple");
   }
 
   async function forgot() {
@@ -208,17 +201,16 @@ useEffect(() => {
 
           <button
             type="button"
-            onClick={apple}
-            disabled={busy}
-            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-black/90 disabled:opacity-50"
+            disabled
+            aria-disabled="true"
+            className="mt-2 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-black/60 px-4 py-2.5 text-sm font-semibold text-white/80 opacity-70"
           >
-            {pendingAction === "apple" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Apple className="h-4 w-4" />
-            )}
-            Continuar con Apple
+            <Apple className="h-4 w-4" />
+            <span>Continuar con Apple · Próximamente</span>
           </button>
+          <p className="mt-1 text-center text-[11px] text-muted-foreground">
+            Disponible próximamente
+          </p>
 
           <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
             <div className="h-px flex-1 bg-border" />
@@ -276,18 +268,6 @@ useEffect(() => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <input
-                id="auth-password"
-                name="password"
-                type="password"
-                required
-                minLength={6}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={inp}
-                placeholder="••••••••"
-              />
             </Field>
 
             {error && <p className="text-sm text-destructive">{error}</p>}
@@ -326,7 +306,29 @@ useEffect(() => {
   );
 }
 
-type PendingAction = "email" | "google" | "apple" | "reset" | null;
+type PendingAction = "email" | OAuthProvider | "reset" | null;
+
+const PENDING_OAUTH_PROVIDER_KEY = "lakitchen.oauth.provider";
+
+type OAuthProvider = "google" | "apple";
+
+function getAuthRedirectUrl() {
+  return `${window.location.origin}/auth`;
+}
+
+function savePendingOAuthProvider(provider: OAuthProvider) {
+  sessionStorage.setItem(PENDING_OAUTH_PROVIDER_KEY, provider);
+}
+
+function getPendingOAuthProvider(): OAuthProvider | undefined {
+  const provider = sessionStorage.getItem(PENDING_OAUTH_PROVIDER_KEY);
+
+  return provider === "google" || provider === "apple" ? provider : undefined;
+}
+
+function clearPendingOAuthProvider() {
+  sessionStorage.removeItem(PENDING_OAUTH_PROVIDER_KEY);
+}
 
 function getAuthErrorMessage(error: unknown, provider?: "google" | "apple") {
   const message = error instanceof Error ? error.message : String(error || "");
