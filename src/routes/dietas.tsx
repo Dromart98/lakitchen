@@ -60,10 +60,6 @@ function getResponseError(data: unknown): string | null {
   return null;
 }
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
-}
-
 function loadDraft(): Draft | null {
   if (typeof window === "undefined") return null;
   try {
