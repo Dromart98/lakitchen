@@ -1,4 +1,5 @@
 import { requireUser } from "../api-auth.js";
+import { aiRateLimits, checkRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
 
 interface Body {
   imageBase64: string; // data URL or raw base64
@@ -14,6 +15,9 @@ export async function handleAnalyzeMealRequest(request: Request): Promise<Respon
   try {
     const auth = await requireUser(request);
     if (auth instanceof Response) return auth;
+
+    const rateLimit = checkRateLimit(aiRateLimits.analyzeMeal, auth.userId);
+    if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
     const key = process.env.OPENAI_API_KEY;
     if (!key)

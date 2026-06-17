@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { requireUser } from "../api-auth.js";
+import { aiRateLimits, checkRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
 
 const macroSchema = z.object({
   kcal: z.number().min(0).max(20000),
@@ -73,6 +74,9 @@ export async function handleGenerateDietRequest(request: Request): Promise<Respo
   try {
     const auth = await requireUser(request);
     if (auth instanceof Response) return auth;
+
+    const rateLimit = checkRateLimit(aiRateLimits.generateDiet, auth.userId);
+    if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
     const key = process.env.OPENAI_API_KEY;
     if (!key)
