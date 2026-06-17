@@ -130,10 +130,6 @@ function AuthPage() {
     void signInWithProvider("google");
   }
 
-  function apple() {
-    void signInWithProvider("apple");
-  }
-
   async function forgot() {
     if (!email) {
       setError("Escribe tu email primero.");
@@ -205,17 +201,16 @@ function AuthPage() {
 
           <button
             type="button"
-            onClick={apple}
-            disabled={busy}
-            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-black/90 disabled:opacity-50"
+            disabled
+            aria-disabled="true"
+            className="mt-2 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-black/60 px-4 py-2.5 text-sm font-semibold text-white/80 opacity-70"
           >
-            {pendingAction === "apple" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Apple className="h-4 w-4" />
-            )}
-            Continuar con Apple
+            <Apple className="h-4 w-4" />
+            <span>Continuar con Apple · Próximamente</span>
           </button>
+          <p className="mt-1 text-center text-[11px] text-muted-foreground">
+            Disponible próximamente
+          </p>
 
           <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
             <div className="h-px flex-1 bg-border" />
