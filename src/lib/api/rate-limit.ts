@@ -1,8 +1,10 @@
 export type AiRateLimitName = "generate-diet" | "analyze-meal" | "estimate-meal" | (string & {});
+export type RateLimitScope = "user" | "ip";
 
 export type RateLimitConfig = {
   name: AiRateLimitName;
-  limit: number;
+  userLimit: number;
+  ipLimit: number;
   windowMs: number;
 };
 
@@ -17,15 +19,16 @@ type RateLimitResult = {
   remaining: number;
   resetAt: string;
   retryAfterSeconds: number;
+  scope: RateLimitScope;
 };
 
 const buckets = new Map<string, RateLimitBucket>();
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
 export const aiRateLimits = {
-  generateDiet: { name: "generate-diet", limit: 10, windowMs: ONE_HOUR_MS },
-  analyzeMeal: { name: "analyze-meal", limit: 15, windowMs: ONE_HOUR_MS },
-  estimateMeal: { name: "estimate-meal", limit: 20, windowMs: ONE_HOUR_MS },
+  generateDiet: { name: "generate-diet", userLimit: 10, ipLimit: 30, windowMs: ONE_HOUR_MS },
+  analyzeMeal: { name: "analyze-meal", userLimit: 15, ipLimit: 45, windowMs: ONE_HOUR_MS },
+  estimateMeal: { name: "estimate-meal", userLimit: 20, ipLimit: 60, windowMs: ONE_HOUR_MS },
 } satisfies Record<string, RateLimitConfig>;
 
 /**
@@ -39,22 +42,26 @@ export const aiRateLimits = {
  * will enforce these counters, but parallel/cold instances may have separate
  * buckets. This is useful as a first guardrail, not a perfect global quota.
  */
-export function checkRateLimit(config: RateLimitConfig, userId: string, now = Date.now()): RateLimitResult {
+export function checkRateLimitForRequest(
+  config: RateLimitConfig,
+  userId: string,
+  request: Request,
+  now = Date.now(),
+): RateLimitResult {
   cleanupExpiredBuckets(now);
 
-  const key = getBucketKey(config.name, userId);
-  const current = buckets.get(key);
-  const bucket = current && current.resetAt > now ? current : { count: 0, resetAt: now + config.windowMs };
-
-  if (bucket.count >= config.limit) {
-    buckets.set(key, bucket);
-    return toResult(false, config.limit, 0, bucket.resetAt, now);
+  const ip = getClientIp(request);
+  if (ip) {
+    const ipLimit = checkBucket(config, "ip", ip, config.ipLimit, now, false);
+    if (!ipLimit.allowed) return ipLimit;
   }
 
-  bucket.count += 1;
-  buckets.set(key, bucket);
+  const userLimit = checkBucket(config, "user", userId, config.userLimit, now, false);
+  if (!userLimit.allowed) return userLimit;
 
-  return toResult(true, config.limit, Math.max(0, config.limit - bucket.count), bucket.resetAt, now);
+  if (ip) checkBucket(config, "ip", ip, config.ipLimit, now, true);
+
+  return checkBucket(config, "user", userId, config.userLimit, now, true);
 }
 
 export function rateLimitExceededResponse(result: RateLimitResult): Response {
@@ -65,6 +72,7 @@ export function rateLimitExceededResponse(result: RateLimitResult): Response {
       limit: result.limit,
       remaining: result.remaining,
       resetAt: result.resetAt,
+      scope: result.scope,
     },
     429,
     { "Retry-After": String(result.retryAfterSeconds) },
@@ -77,6 +85,7 @@ function toResult(
   remaining: number,
   resetAtMs: number,
   now: number,
+  scope: RateLimitScope,
 ): RateLimitResult {
   return {
     allowed,
@@ -84,7 +93,33 @@ function toResult(
     remaining,
     resetAt: new Date(resetAtMs).toISOString(),
     retryAfterSeconds: Math.max(1, Math.ceil((resetAtMs - now) / 1000)),
+    scope,
   };
+}
+
+function checkBucket(
+  config: RateLimitConfig,
+  scope: RateLimitScope,
+  identifier: string,
+  limit: number,
+  now: number,
+  consume: boolean,
+): RateLimitResult {
+  const key = getBucketKey(config.name, scope, identifier);
+  const current = buckets.get(key);
+  const bucket = current && current.resetAt > now ? current : { count: 0, resetAt: now + config.windowMs };
+
+  if (bucket.count >= limit) {
+    buckets.set(key, bucket);
+    return toResult(false, limit, 0, bucket.resetAt, now, scope);
+  }
+
+  if (consume) {
+    bucket.count += 1;
+    buckets.set(key, bucket);
+  }
+
+  return toResult(true, limit, Math.max(0, limit - bucket.count), bucket.resetAt, now, scope);
 }
 
 function cleanupExpiredBuckets(now: number) {
@@ -93,8 +128,21 @@ function cleanupExpiredBuckets(now: number) {
   }
 }
 
-function getBucketKey(name: string, userId: string) {
-  return `${name}:${userId}`;
+function getBucketKey(name: string, scope: RateLimitScope, identifier: string) {
+  return `${name}:${scope}:${identifier}`;
+}
+
+function getClientIp(request: Request): string | null {
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  if (forwardedFor) return forwardedFor;
+
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  const cfIp = request.headers.get("cf-connecting-ip")?.trim();
+  if (cfIp) return cfIp;
+
+  return null;
 }
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
