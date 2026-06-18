@@ -2,6 +2,7 @@ import { requireUser } from "../api-auth.js";
 import { aiRateLimits, checkRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
 
 export async function handleEstimateMealRequest(request: Request): Promise<Response> {
+  const startedAt = Date.now();
   if (request.method !== "POST") return methodNotAllowed();
 
   const auth = await requireUser(request);
@@ -22,8 +23,11 @@ export async function handleEstimateMealRequest(request: Request): Promise<Respo
   const description = (body.description ?? "")
     .toString()
     .replace(/[\r\n\t`]+/g, " ")
-    .trim()
-    .slice(0, 500);
+    .trim();
+  if (description.length > MAX_DESCRIPTION_LENGTH) {
+    logAiApiEvent({ endpoint: "estimate-meal", startedAt, code: "description_too_long", status: 400, userId: auth.userId, request });
+    return json({ error: "Descripción demasiado larga", code: "description_too_long" }, 400);
+  }
   if (!description) {
     return json({ error: "Descripción vacía" }, 400);
   }
@@ -86,8 +90,7 @@ export async function handleEstimateMealRequest(request: Request): Promise<Respo
   if (!upstream.ok) {
     if (upstream.status === 429) return json({ error: "Límite de uso alcanzado." }, 429);
     if (upstream.status === 402) return json({ error: "Sin créditos en Lovable AI." }, 402);
-    const t = await upstream.text();
-    console.error("estimate-meal upstream", upstream.status, t);
+    console.error("[estimate-meal] upstream error", { status: upstream.status });
     return json({ error: `Error IA (${upstream.status})` }, 500);
   }
 

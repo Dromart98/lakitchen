@@ -7,9 +7,11 @@ interface Body {
 
 const OPENAI_TIMEOUT_MS = 30000;
 const MAX_IMAGE_BASE64_LENGTH = 8 * 1024 * 1024;
+const MAX_REQUEST_BYTES = 9 * 1024 * 1024;
 const ALLOWED_DATA_URL_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/i;
 
 export async function handleAnalyzeMealRequest(request: Request): Promise<Response> {
+  const startedAt = Date.now();
   if (request.method !== "POST") return methodNotAllowed();
 
   try {
@@ -188,6 +190,7 @@ function buildPayload(dataUrl: string) {
       },
     ],
     tool_choice: { type: "function", function: { name: "report_meal" } },
+    max_tokens: 500,
   };
 }
 

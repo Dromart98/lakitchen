@@ -31,6 +31,7 @@ const bodySchema = z.object({
 
 const OPENAI_TIMEOUT_MS = 30000;
 const MAX_PROMPT_PRODUCTS = 40;
+const MAX_REQUEST_BYTES = 128 * 1024;
 
 const dietPlanSchema = {
   type: "object",
@@ -69,6 +70,7 @@ const dietPlanSchema = {
 } as const;
 
 export async function handleGenerateDietRequest(request: Request): Promise<Response> {
+  const startedAt = Date.now();
   if (request.method !== "POST") return methodNotAllowed();
 
   try {
