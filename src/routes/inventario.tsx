@@ -3,7 +3,7 @@ import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/store";
 import { useShoppingList } from "@/lib/shopping";
-import { authFetch } from "@/lib/auth-fetch";
+import { estimateMeal } from "@/lib/estimate-meal-client";
 import { AlertTriangle, Check, Minus, Plus, Refrigerator, ShoppingCart, Snowflake, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 
@@ -313,13 +313,7 @@ function AddDialog({
         ? (form.unit === "ml" || form.unit === "l" ? "100 ml" : "100 g")
         : "1 unidad";
       const description = `Valor nutricional medio por ${unitLabel} de: ${name}. Devuelve kcal y macros para esa cantidad exacta.`;
-      const res = await authFetch("/api/estimate-meal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error IA");
+      const data = await estimateMeal(description);
       setForm((f) => ({
         ...f,
         kcal: Math.round(data.kcal ?? 0),
