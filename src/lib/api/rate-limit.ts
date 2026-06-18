@@ -62,6 +62,8 @@ export function checkRateLimitForRequest(
   if (ip) checkBucket(config, "ip", ip, config.ipLimit, now, true);
 
   return checkBucket(config, "user", userId, config.userLimit, now, true);
+
+  return checkBucket(config, "user", userId, config.userLimit, now, true);
 }
 
 export function checkRateLimitForRequest(
@@ -149,6 +151,13 @@ function getBucketKey(name: string, scope: RateLimitScope, identifier: string) {
 
 function getClientIp(request: Request): string | null {
   const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  if (forwardedFor) return forwardedFor;
+
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  const cloudflareIp = request.headers.get("cf-connecting-ip")?.trim();
+  return cloudflareIp || null;
   return (
     forwardedFor ||
     request.headers.get("x-real-ip")?.trim() ||
