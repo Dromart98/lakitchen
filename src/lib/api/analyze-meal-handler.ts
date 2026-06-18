@@ -1,5 +1,5 @@
 import { requireUser } from "../api-auth.js";
-import { aiRateLimits, checkRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
+import { aiRateLimits, checkRateLimitForRequest, rateLimitExceededResponse } from "./rate-limit.js";
 
 interface Body {
   imageBase64: string; // data URL or raw base64
@@ -18,7 +18,7 @@ export async function handleAnalyzeMealRequest(request: Request): Promise<Respon
     const auth = await requireUser(request);
     if (auth instanceof Response) return auth;
 
-    const rateLimit = checkRateLimit(aiRateLimits.analyzeMeal, auth.userId);
+    const rateLimit = checkRateLimitForRequest(aiRateLimits.analyzeMeal, auth.userId, request);
     if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
     const key = process.env.OPENAI_API_KEY;
@@ -27,7 +27,7 @@ export async function handleAnalyzeMealRequest(request: Request): Promise<Respon
 
     let body: Body;
     try {
-      body = await request.json();
+      body = await readRequestJson(request, MAX_REQUEST_BYTES);
     } catch {
       return json({ error: "JSON inválido" }, 400);
     }
@@ -84,6 +84,9 @@ export async function handleAnalyzeMealRequest(request: Request): Promise<Respon
       return json({ error: "Respuesta IA no parseable" }, 500);
     }
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      return json({ error: "La petición es demasiado grande.", code: "payload_too_large" }, 413);
+    }
     console.error("[analyze-meal] Unexpected error", getSafeErrorLog(error));
     return json({ error: "Error al analizar la imagen" }, 500);
   }
@@ -111,6 +114,14 @@ function validateImageInput(imageBase64: unknown): string | Response {
   }
 
   return `data:image/jpeg;base64,${value.replace(/\s+/g, "")}`;
+}
+
+async function readRequestJson(request: Request, maxBytes: number): Promise<Body> {
+  const text = await request.text();
+  if (new TextEncoder().encode(text).byteLength > maxBytes) {
+    throw new PayloadTooLargeError();
+  }
+  return JSON.parse(text) as Body;
 }
 
 function methodNotAllowed() {
@@ -295,4 +306,11 @@ function json(data: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+class PayloadTooLargeError extends Error {
+  constructor() {
+    super("Payload too large");
+    this.name = "PayloadTooLargeError";
+  }
 }
