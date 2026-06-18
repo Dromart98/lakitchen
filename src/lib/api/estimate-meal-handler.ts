@@ -42,8 +42,6 @@ export async function handleEstimateMealRequest(request: Request): Promise<Respo
     }
 
     const description = body.description.replace(/[\r\n\t`]+/g, " ").trim();
-      .replace(/[\r\n\t`]+/g, " ")
-      .trim();
     if (description.length > MAX_DESCRIPTION_LENGTH) {
       logAiApiEvent({ endpoint: "estimate-meal", startedAt, code: "description_too_long", status: 400, userId: auth.userId, request });
       return json({ error: "Descripción demasiado larga", code: "description_too_long" }, 400);
