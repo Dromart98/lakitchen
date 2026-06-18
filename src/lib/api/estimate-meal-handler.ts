@@ -2,7 +2,7 @@ import { requireUser } from "../api-auth.js";
 import { aiRateLimits, checkRateLimitForRequest, rateLimitExceededResponse } from "./rate-limit.js";
 
 const OPENAI_TIMEOUT_MS = 30000;
-const MAX_DESCRIPTION_LENGTH = 500;
+const MAX_DESCRIPTION_LENGTH = 2000;
 const MAX_REQUEST_BYTES = 16 * 1024;
 
 type EstimateMealBody = {

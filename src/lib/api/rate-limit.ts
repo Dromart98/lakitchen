@@ -64,6 +64,21 @@ export function checkRateLimitForRequest(
   return checkBucket(config, "user", userId, config.userLimit, now, true);
 }
 
+export function checkRateLimitForRequest(
+  config: RateLimitConfig,
+  userId: string,
+  request: Request,
+  now = Date.now(),
+): RateLimitResult {
+  const userLimit = checkRateLimit(config, `user:${userId}`, now);
+  if (!userLimit.allowed) return userLimit;
+
+  const ip = getClientIp(request);
+  if (!ip) return userLimit;
+
+  return checkRateLimit(config, `ip:${ip}`, now);
+}
+
 export function rateLimitExceededResponse(result: RateLimitResult): Response {
   return json(
     {
@@ -130,6 +145,16 @@ function cleanupExpiredBuckets(now: number) {
 
 function getBucketKey(name: string, scope: RateLimitScope, identifier: string) {
   return `${name}:${scope}:${identifier}`;
+}
+
+function getClientIp(request: Request): string | null {
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return (
+    forwardedFor ||
+    request.headers.get("x-real-ip")?.trim() ||
+    request.headers.get("cf-connecting-ip")?.trim() ||
+    null
+  );
 }
 
 function getClientIp(request: Request): string | null {
