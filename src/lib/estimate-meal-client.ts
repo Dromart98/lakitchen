@@ -64,17 +64,29 @@ function getEstimateMealErrorMessage(status: number, data: unknown): string {
   const apiError = typeof record?.error === "string" ? record.error : null;
   const code = typeof record?.code === "string" ? record.code : null;
 
-  if (status === 429 || code === "rate_limited") {
-    return "Has alcanzado el límite de usos por ahora. Inténtalo más tarde.";
+  if (status === 400) {
+    return apiError ?? "Revisa la descripción de la comida e inténtalo de nuevo.";
   }
   if (status === 401) {
     return "Tu sesión ha caducado. Inicia sesión de nuevo para estimar comidas.";
   }
-  if (status === 504 || code === "ai_timeout") {
+  if (status === 413 || code === "payload_too_large") {
+    return "La descripción es demasiado grande. Acórtala e inténtalo de nuevo.";
+  }
+  if (status === 429 || code === "rate_limited") {
+    return "Has alcanzado el límite de usos por ahora. Inténtalo más tarde.";
+  }
+  if (status === 504 || code === "openai_timeout" || code === "ai_timeout") {
     return "La estimación está tardando demasiado. Inténtalo de nuevo.";
   }
-  if (status >= 500) {
+  if (code === "missing_openai_key") {
+    return "La estimación no está configurada en el servidor. Inténtalo más tarde.";
+  }
+  if (status === 500) {
     return "No se pudo estimar la comida por un error del servidor. Inténtalo más tarde.";
+  }
+  if (status >= 500) {
+    return "No se pudo conectar con el servicio de estimación. Inténtalo más tarde.";
   }
 
   return apiError ?? "No se pudo estimar la comida. Inténtalo de nuevo.";
