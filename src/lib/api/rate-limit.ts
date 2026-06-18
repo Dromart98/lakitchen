@@ -62,6 +62,23 @@ export function checkRateLimitForRequest(
   if (ip) checkBucket(config, "ip", ip, config.ipLimit, now, true);
 
   return checkBucket(config, "user", userId, config.userLimit, now, true);
+
+  return checkBucket(config, "user", userId, config.userLimit, now, true);
+}
+
+export function checkRateLimitForRequest(
+  config: RateLimitConfig,
+  userId: string,
+  request: Request,
+  now = Date.now(),
+): RateLimitResult {
+  const userLimit = checkRateLimit(config, `user:${userId}`, now);
+  if (!userLimit.allowed) return userLimit;
+
+  const ip = getClientIp(request);
+  if (!ip) return userLimit;
+
+  return checkRateLimit(config, `ip:${ip}`, now);
 }
 
 export function rateLimitExceededResponse(result: RateLimitResult): Response {
@@ -141,6 +158,22 @@ function getClientIp(request: Request): string | null {
 
   const cloudflareIp = request.headers.get("cf-connecting-ip")?.trim();
   return cloudflareIp || null;
+  return (
+    forwardedFor ||
+    request.headers.get("x-real-ip")?.trim() ||
+    request.headers.get("cf-connecting-ip")?.trim() ||
+    null
+  );
+}
+
+function getClientIp(request: Request): string | null {
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return (
+    forwardedFor ||
+    request.headers.get("x-real-ip")?.trim() ||
+    request.headers.get("cf-connecting-ip")?.trim() ||
+    null
+  );
 }
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
