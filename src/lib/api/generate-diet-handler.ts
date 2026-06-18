@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { requireUser } from "../api-auth.js";
-import { aiRateLimits, checkRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
+import { aiRateLimits, checkRateLimitForRequest, rateLimitExceededResponse } from "./rate-limit.js";
 
 const macroSchema = z.object({
   kcal: z.number().min(0).max(20000),
@@ -77,7 +77,7 @@ export async function handleGenerateDietRequest(request: Request): Promise<Respo
     const auth = await requireUser(request);
     if (auth instanceof Response) return auth;
 
-    const rateLimit = checkRateLimit(aiRateLimits.generateDiet, auth.userId);
+    const rateLimit = checkRateLimitForRequest(aiRateLimits.generateDiet, auth.userId, request);
     if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
     const key = process.env.OPENAI_API_KEY;
@@ -85,7 +85,7 @@ export async function handleGenerateDietRequest(request: Request): Promise<Respo
       return json({ error: "Missing OpenAI API configuration", code: "missing_openai_key" }, 500);
     let raw: unknown;
     try {
-      raw = await request.json();
+      raw = await readRequestJson(request, MAX_REQUEST_BYTES);
     } catch {
       return json({ error: "JSON inválido" }, 400);
     }
@@ -189,6 +189,9 @@ Genera 3-4 comidas variadas que sumen aproximadamente los macros restantes y que
       return json({ error: "Respuesta IA no parseable" }, 500);
     }
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      return json({ error: "La petición es demasiado grande.", code: "payload_too_large" }, 413);
+    }
     console.error("[generate-diet] Unexpected error", getSafeErrorLog(error));
     return json({ error: "Error al generar dieta" }, 500);
   }
@@ -239,6 +242,14 @@ function formatQuantity(quantity: number): string {
   return Number.isInteger(quantity) ? String(quantity) : quantity.toFixed(2).replace(/\.?0+$/, "");
 }
 
+async function readRequestJson(request: Request, maxBytes: number): Promise<unknown> {
+  const text = await request.text();
+  if (new TextEncoder().encode(text).byteLength > maxBytes) {
+    throw new PayloadTooLargeError();
+  }
+  return JSON.parse(text) as unknown;
+}
+
 async function readJson(response: Response): Promise<unknown | null> {
   const text = await response.text();
   if (!text.trim()) return null;
@@ -283,4 +294,11 @@ function json(data: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+class PayloadTooLargeError extends Error {
+  constructor() {
+    super("Payload too large");
+    this.name = "PayloadTooLargeError";
+  }
 }
