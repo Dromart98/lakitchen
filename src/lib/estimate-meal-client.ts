@@ -70,8 +70,17 @@ function getEstimateMealErrorMessage(status: number, data: unknown): string {
   if (status === 401) {
     return "Tu sesión ha caducado. Inicia sesión de nuevo para estimar comidas.";
   }
+  if (status === 413 || code === "payload_too_large") {
+    return "La petición es demasiado grande. Reduce el texto e inténtalo de nuevo.";
+  }
+  if (status === 400) {
+    return apiError ?? "La descripción no es válida. Revisa el texto e inténtalo de nuevo.";
+  }
   if (status === 504 || code === "ai_timeout" || code === "openai_timeout") {
     return "La estimación está tardando demasiado. Inténtalo de nuevo.";
+  }
+  if (code === "missing_openai_key") {
+    return "La estimación por IA no está configurada en el servidor.";
   }
   if (status >= 500) {
     return "No se pudo estimar la comida por un error del servidor. Inténtalo más tarde.";
