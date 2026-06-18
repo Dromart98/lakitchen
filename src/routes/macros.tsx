@@ -6,7 +6,7 @@ import { CalculadoraView } from "@/components/CalculadoraView";
 import { HistorialView } from "@/components/HistorialView";
 import { todayKey, uid, useGoals, useMeals, useProducts, type Product } from "@/lib/store";
 import { BarChart3, Calculator, Loader2, Salad, Sparkles, Trash2, UtensilsCrossed, Wand2 } from "lucide-react";
-import { authFetch } from "@/lib/auth-fetch";
+import { estimateMeal, type EstimatedMeal } from "@/lib/estimate-meal-client";
 import { deductionsFromText } from "@/lib/consume";
 import { toast } from "sonner";
 
@@ -250,20 +250,14 @@ function AiForm({ onAdd }: { onAdd: (m: { id: string; date: string; name: string
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ name: string; kcal: number; protein: number; carbs: number; fat: number; confidence: string; notes: string } | null>(null);
+  const [result, setResult] = useState<EstimatedMeal | null>(null);
 
   async function estimate() {
     setError(null);
     setLoading(true);
     setResult(null);
     try {
-      const res = await authFetch("/api/estimate-meal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: text }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error");
+      const data = await estimateMeal(text);
       setResult(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error desconocido");
