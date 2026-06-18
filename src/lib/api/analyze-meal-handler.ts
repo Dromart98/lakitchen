@@ -1,6 +1,5 @@
 import { requireUser } from "../api-auth.js";
-import { aiIpRateLimits, aiRateLimits, checkAiRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
-import { logAiApiEvent, rejectOversizedPayload } from "./safe-log.js";
+import { aiRateLimits, checkRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
 
 interface Body {
   imageBase64: string; // data URL or raw base64
@@ -19,17 +18,8 @@ export async function handleAnalyzeMealRequest(request: Request): Promise<Respon
     const auth = await requireUser(request);
     if (auth instanceof Response) return auth;
 
-    const rateLimit = checkAiRateLimit(request, aiRateLimits.analyzeMeal, aiIpRateLimits.analyzeMeal, auth.userId);
-    if (!rateLimit.allowed) {
-      logAiApiEvent({ endpoint: "analyze-meal", startedAt, code: "rate_limited", status: 429, userId: auth.userId, request });
-      return rateLimitExceededResponse(rateLimit);
-    }
-
-    const oversized = rejectOversizedPayload(request, MAX_REQUEST_BYTES);
-    if (oversized) {
-      logAiApiEvent({ endpoint: "analyze-meal", startedAt, code: "payload_too_large", status: 413, userId: auth.userId, request });
-      return oversized;
-    }
+    const rateLimit = checkRateLimit(aiRateLimits.analyzeMeal, auth.userId);
+    if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
     const key = process.env.OPENAI_API_KEY;
     if (!key)

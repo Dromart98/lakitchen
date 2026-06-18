@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { requireUser } from "../api-auth.js";
-import { aiIpRateLimits, aiRateLimits, checkAiRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
-import { logAiApiEvent, rejectOversizedPayload } from "./safe-log.js";
+import { aiRateLimits, checkRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
 
 const macroSchema = z.object({
   kcal: z.number().min(0).max(20000),
@@ -78,17 +77,8 @@ export async function handleGenerateDietRequest(request: Request): Promise<Respo
     const auth = await requireUser(request);
     if (auth instanceof Response) return auth;
 
-    const rateLimit = checkAiRateLimit(request, aiRateLimits.generateDiet, aiIpRateLimits.generateDiet, auth.userId);
-    if (!rateLimit.allowed) {
-      logAiApiEvent({ endpoint: "generate-diet", startedAt, code: "rate_limited", status: 429, userId: auth.userId, request });
-      return rateLimitExceededResponse(rateLimit);
-    }
-
-    const oversized = rejectOversizedPayload(request, MAX_REQUEST_BYTES);
-    if (oversized) {
-      logAiApiEvent({ endpoint: "generate-diet", startedAt, code: "payload_too_large", status: 413, userId: auth.userId, request });
-      return oversized;
-    }
+    const rateLimit = checkRateLimit(aiRateLimits.generateDiet, auth.userId);
+    if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
     const key = process.env.OPENAI_API_KEY;
     if (!key)

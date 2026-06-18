@@ -1,10 +1,5 @@
 import { requireUser } from "../api-auth.js";
-import { aiIpRateLimits, aiRateLimits, checkAiRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
-import { logAiApiEvent, rejectOversizedPayload } from "./safe-log.js";
-
-const AI_TIMEOUT_MS = 30000;
-const MAX_DESCRIPTION_LENGTH = 500;
-const MAX_REQUEST_BYTES = 16 * 1024;
+import { aiRateLimits, checkRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
 
 export async function handleEstimateMealRequest(request: Request): Promise<Response> {
   const startedAt = Date.now();
@@ -13,17 +8,8 @@ export async function handleEstimateMealRequest(request: Request): Promise<Respo
   const auth = await requireUser(request);
   if (auth instanceof Response) return auth;
 
-  const rateLimit = checkAiRateLimit(request, aiRateLimits.estimateMeal, aiIpRateLimits.estimateMeal, auth.userId);
-  if (!rateLimit.allowed) {
-    logAiApiEvent({ endpoint: "estimate-meal", startedAt, code: "rate_limited", status: 429, userId: auth.userId, request });
-    return rateLimitExceededResponse(rateLimit);
-  }
-
-  const oversized = rejectOversizedPayload(request, MAX_REQUEST_BYTES);
-  if (oversized) {
-    logAiApiEvent({ endpoint: "estimate-meal", startedAt, code: "payload_too_large", status: 413, userId: auth.userId, request });
-    return oversized;
-  }
+  const rateLimit = checkRateLimit(aiRateLimits.estimateMeal, auth.userId);
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const key = process.env.LOVABLE_API_KEY;
   if (!key) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
