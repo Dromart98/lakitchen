@@ -200,6 +200,7 @@ function buildPayload(dataUrl: string) {
       },
     ],
     tool_choice: { type: "function", function: { name: "report_meal" } },
+    max_tokens: 500,
   };
 }
 
