@@ -1,8 +1,6 @@
 import { requireUser } from "../api-auth.js";
 import { aiRateLimits, checkRateLimit, rateLimitExceededResponse } from "./rate-limit.js";
 
-const AI_TIMEOUT_MS = 30000;
-
 export async function handleEstimateMealRequest(request: Request): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed();
 
