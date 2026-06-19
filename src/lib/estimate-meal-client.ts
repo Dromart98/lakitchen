@@ -64,6 +64,9 @@ function getEstimateMealErrorMessage(status: number, data: unknown): string {
   const apiError = typeof record?.error === "string" ? record.error : null;
   const code = typeof record?.code === "string" ? record.code : null;
 
+  if (code === "not_food") {
+    return "No parece una comida válida. Escribe alimentos o ingredientes, por ejemplo: 150 g de pollo con arroz.";
+  }
   if (status === 400) {
     return apiError ?? "Revisa la descripción de la comida e inténtalo de nuevo.";
   }

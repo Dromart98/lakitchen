@@ -337,21 +337,56 @@ export function useMeals() {
   return [state, setAndSync] as const;
 }
 
+
+export async function saveGoals(goals: Goals): Promise<Goals> {
+  const value = normalizeGoals(goals);
+  const { data, error: userError } = await supabase.auth.getUser();
+  const userId = data.user?.id ?? null;
+
+  if (userError || !userId) {
+    throw new Error("User is not authenticated");
+  }
+
+  const { error } = await supabase
+    .from("goals")
+    .upsert({ user_id: userId, ...value }, { onConflict: "user_id" });
+
+  if (error) throw error;
+
+  currentUserId = userId;
+  save(KEY_GOALS, value);
+  return value;
+}
+
+function normalizeGoals(goals: Goals): Goals {
+  return {
+    kcal: clampGoal(goals.kcal),
+    protein: clampGoal(goals.protein),
+    carbs: clampGoal(goals.carbs),
+    fat: clampGoal(goals.fat),
+  };
+}
+
+function clampGoal(value: number): number {
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
 export function useGoals() {
   const [state, setState] = useLocalState<Goals>(KEY_GOALS, DEFAULT_GOALS);
   const setAndSync = useCallback(
     (next: Goals | ((prev: Goals) => Goals)) => {
       setState((prev) => {
         const value = typeof next === "function" ? (next as (p: Goals) => Goals)(prev) : next;
+        const normalized = normalizeGoals(value);
         if (currentUserId) {
           supabase
             .from("goals")
-            .upsert({ user_id: currentUserId, ...value })
+            .upsert({ user_id: currentUserId, ...normalized }, { onConflict: "user_id" })
             .then(({ error }) => {
               if (error) console.error("[goals sync]", error);
             });
         }
-        return value;
+        return normalized;
       });
     },
     [setState],
