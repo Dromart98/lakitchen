@@ -164,7 +164,7 @@ export function CalculadoraView() {
                 <MacroBar label="Grasas" value={result.fat} goal={result.fat} colorVar="fat" unit="g" />
               </div>
               <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                <button onClick={applyToGoals} disabled={savingGoals || applied} className="rounded-xl bg-gradient-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90 disabled:opacity-50">
+                <button type="button" onClick={applyToGoals} disabled={savingGoals || applied} className="rounded-xl bg-gradient-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90 disabled:opacity-50">
                   {savingGoals ? (
                     <span className="flex items-center justify-center gap-1"><Loader2 className="h-4 w-4 animate-spin" /> Aplicar como objetivos</span>
                   ) : applied ? (
