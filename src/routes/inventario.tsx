@@ -148,6 +148,12 @@ function ProductsView({
                     </span>
                   )}
                 </div>
+                {(p.brand || p.usualServing) && (
+                  <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                    {p.brand && <span className="truncate">{p.brand}</span>}
+                    {p.usualServing && <span>Ración habitual: {p.usualServing}</span>}
+                  </div>
+                )}
                 <div className="mt-0.5 text-xs text-muted-foreground">
                   {p.kcal} kcal · P{p.protein} · C{p.carbs} · G{p.fat} /{p.per === "100g" ? "100g" : "ud"}
                 </div>
@@ -288,6 +294,8 @@ function AddDialog({
   const [form, setForm] = useState<Product>({
     id: uid(),
     name: "",
+    brand: "",
+    usualServing: "",
     location: defaultLocation,
     quantity: 0,
     unit: "g",
@@ -332,7 +340,13 @@ function AddDialog({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) return;
-    onAdd({ ...form, id: uid() });
+    onAdd({
+      ...form,
+      id: uid(),
+      name: form.name.trim(),
+      brand: form.brand?.trim() || undefined,
+      usualServing: form.usualServing?.trim() || undefined,
+    });
     onClose();
   }
 
@@ -359,6 +373,12 @@ function AddDialog({
         <div className="mt-4 grid grid-cols-2 gap-3">
           <Field label="Nombre" className="col-span-2">
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputCls} placeholder="Pechuga de pollo" required />
+          </Field>
+          <Field label="Marca o supermercado" className="col-span-2 sm:col-span-1">
+            <input value={form.brand ?? ""} onChange={(e) => setForm({ ...form, brand: e.target.value })} className={inputCls} placeholder="Ej. Hacendado, Lidl, Hiperdino" />
+          </Field>
+          <Field label="Ración habitual" className="col-span-2 sm:col-span-1">
+            <input value={form.usualServing ?? ""} onChange={(e) => setForm({ ...form, usualServing: e.target.value })} className={inputCls} placeholder="Ej. 150 g, 1 lata, 2 huevos" />
           </Field>
           <Field label="Ubicación">
             <select value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value as Location })} className={inputCls}>

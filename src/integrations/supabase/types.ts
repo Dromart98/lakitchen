@@ -199,6 +199,7 @@ export type Database = {
       }
       products: {
         Row: {
+          brand: string | null
           carbs: number
           created_at: string
           fat: number
@@ -213,8 +214,10 @@ export type Database = {
           unit: string
           updated_at: string
           user_id: string
+          usual_serving: string | null
         }
         Insert: {
+          brand?: string | null
           carbs?: number
           created_at?: string
           fat?: number
@@ -229,8 +232,10 @@ export type Database = {
           unit: string
           updated_at?: string
           user_id: string
+          usual_serving?: string | null
         }
         Update: {
+          brand?: string | null
           carbs?: number
           created_at?: string
           fat?: number
@@ -245,6 +250,7 @@ export type Database = {
           unit?: string
           updated_at?: string
           user_id?: string
+          usual_serving?: string | null
         }
         Relationships: []
       }
