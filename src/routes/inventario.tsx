@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/store";
 import { useShoppingList } from "@/lib/shopping";
 import { estimateProductMacros } from "@/lib/estimate-product-macros-client";
+import { estimateMeal } from "@/lib/estimate-meal-client";
 import { AlertTriangle, Check, Loader2, Minus, Plus, Refrigerator, ShoppingCart, Snowflake, Pencil, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 
@@ -370,7 +371,7 @@ function ProductDialog({
         carbs: Math.round((data.carbs ?? 0) * 10) / 10,
         fat: Math.round((data.fat ?? 0) * 10) / 10,
       }));
-      toast.success("Macros estimados por 100 g con IA");
+      toast.success("Macros estimados por 100 g/ml con IA");
     } catch (e) {
       const message = getProductEstimateErrorMessage(e);
       setEstimateError(message);
@@ -402,7 +403,7 @@ function ProductDialog({
       >
         <h2 className="font-display text-xl font-bold">{isEditing ? "Editar producto" : "Nuevo producto"}</h2>
         <p className="mt-1 text-xs text-muted-foreground">Valores nutricionales por 100 g</p>
-        <p className="mt-1 text-xs text-muted-foreground">La IA rellenará una estimación. Revísala antes de guardar.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Calcula con IA valores por 100 g/ml; revisa antes de guardar.</p>
 
         <button
           type="button"
@@ -480,11 +481,22 @@ function ProductDialog({
   );
 }
 
+function buildProductEstimateDescription(form: Product, name: string) {
+  const details = [
+    `Estima los valores nutricionales por 100 g del producto: ${name}`,
+    form.brand?.trim() ? `Marca/supermercado: ${form.brand.trim()}` : null,
+    form.usualServing?.trim() ? `Ración habitual: ${form.usualServing.trim()}` : null,
+    "Devuelve kcal, proteína, carbohidratos y grasas por 100 g o 100 ml si claramente es líquido.",
+    "No calcules el paquete completo ni guardes el producto automáticamente.",
+  ].filter(Boolean);
+
+  return details.join(". ");
+}
+
 function getProductEstimateErrorMessage(error: unknown) {
   if (error instanceof Error) {
     if (error.message.includes("No parece una comida válida")) return "No parece un producto alimentario válido.";
-    if (error.message.includes("No parece un producto alimentario válido")) return "No parece un producto alimentario válido.";
-    if (error.message.includes("tardando demasiado")) return "La estimación está tardando demasiado. Prueba de nuevo.";
+    if (error.message.includes("tardando demasiado")) return "La estimación está tardando demasiado. Prueba con un nombre más concreto.";
     return error.message;
   }
 
