@@ -280,7 +280,11 @@ function AiForm({ onAdd }: { onAdd: (m: { id: string; date: string; name: string
         className={input + " min-h-[80px]"}
         placeholder="ej. 2 huevos revueltos con 80g de avena y una manzana"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value);
+          setError(null);
+          setResult(null);
+        }}
       />
       <button
         type="button"
