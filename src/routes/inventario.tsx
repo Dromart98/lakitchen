@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/store";
 import { useShoppingList } from "@/lib/shopping";
+import { estimateProductMacros } from "@/lib/estimate-product-macros-client";
 import { estimateMeal } from "@/lib/estimate-meal-client";
 import { AlertTriangle, Check, Loader2, Minus, Plus, Refrigerator, ShoppingCart, Snowflake, Pencil, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
@@ -358,8 +359,11 @@ function ProductDialog({
     setEstimating(true);
     setEstimateError(null);
     try {
-      const description = buildProductEstimateDescription(form, name);
-      const data = await estimateMeal(description);
+      const data = await estimateProductMacros({
+        name,
+        brand: form.brand,
+        usualServing: form.usualServing,
+      });
       setForm((f) => ({
         ...f,
         kcal: Math.round(data.kcal ?? 0),
@@ -398,12 +402,13 @@ function ProductDialog({
         className="w-full max-w-lg rounded-t-3xl border border-border/60 bg-card p-6 shadow-card md:rounded-3xl"
       >
         <h2 className="font-display text-xl font-bold">{isEditing ? "Editar producto" : "Nuevo producto"}</h2>
+        <p className="mt-1 text-xs text-muted-foreground">Valores nutricionales por 100 g</p>
         <p className="mt-1 text-xs text-muted-foreground">Calcula con IA valores por 100 g/ml; revisa antes de guardar.</p>
 
         <button
           type="button"
           onClick={estimateMacros}
-          disabled={estimating || !form.name.trim()}
+          disabled={estimating}
           className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/15 disabled:opacity-50"
         >
           {estimating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
