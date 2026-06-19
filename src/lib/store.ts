@@ -337,20 +337,21 @@ export function useMeals() {
   return [state, setAndSync] as const;
 }
 
+export async function saveGoals(goals: Goals) {
+  save(KEY_GOALS, goals);
+  if (!currentUserId) return;
+
+  const { error } = await supabase.from("goals").upsert({ user_id: currentUserId, ...goals });
+  if (error) throw error;
+}
+
 export function useGoals() {
   const [state, setState] = useLocalState<Goals>(KEY_GOALS, DEFAULT_GOALS);
   const setAndSync = useCallback(
     (next: Goals | ((prev: Goals) => Goals)) => {
       setState((prev) => {
         const value = typeof next === "function" ? (next as (p: Goals) => Goals)(prev) : next;
-        if (currentUserId) {
-          supabase
-            .from("goals")
-            .upsert({ user_id: currentUserId, ...value })
-            .then(({ error }) => {
-              if (error) console.error("[goals sync]", error);
-            });
-        }
+        saveGoals(value).catch((error) => console.error("[goals sync]", error));
         return value;
       });
     },
