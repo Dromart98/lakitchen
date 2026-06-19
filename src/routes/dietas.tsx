@@ -12,9 +12,9 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/dietas")({
   head: () => ({
     meta: [
-      { title: "Dietas IA · LaKitchen" },
-      { name: "description", content: "Recetas y planes de comida generados por IA usando lo que ya tienes en tu despensa." },
-      { property: "og:title", content: "Dietas IA · LaKitchen" },
+      { title: "Dieta · LaKitchen" },
+      { name: "description", content: "Planes de comida generados por IA usando lo que ya tienes en tu despensa." },
+      { property: "og:title", content: "Dieta · LaKitchen" },
       { property: "og:description", content: "Planes de comida generados con IA a partir de tu inventario y objetivos diarios." },
       { property: "og:url", content: "https://lakitchenapp.com/dietas" },
     ],
@@ -289,7 +289,7 @@ function Diets() {
           <ChefHat className="h-6 w-6 text-primary-foreground" />
         </div>
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Dietas con tu despensa</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight">Dieta con tu despensa</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             La IA crea un plan usando lo que tienes y lo que te falta hoy ({remaining.kcal} kcal, P{remaining.protein}g).
           </p>

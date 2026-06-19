@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Camera, ChefHat, LayoutDashboard, LogIn, LogOut, Package, Salad, Settings, User, UtensilsCrossed } from "lucide-react";
+import { ChefHat, LayoutDashboard, LogIn, LogOut, Package, Salad, Settings, User, UtensilsCrossed } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { useAuth, signOut } from "@/lib/auth";
 import { applyTheme, getTheme } from "@/lib/theme";
@@ -8,8 +8,7 @@ const nav = [
   { to: "/", label: "Inicio", icon: LayoutDashboard },
   { to: "/inventario", label: "Despensa", icon: Package },
   { to: "/macros", label: "Macros", icon: Salad },
-  { to: "/dietas", label: "Dietas", icon: ChefHat },
-  { to: "/foto", label: "Foto", icon: Camera },
+  { to: "/dietas", label: "Dieta", icon: ChefHat },
   { to: "/ajustes", label: "Ajustes", icon: Settings },
 ] as const;
 
@@ -37,7 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
           <nav className="hidden gap-1 md:flex">
             {nav.map(({ to, label, icon: Icon }) => {
-              const active = pathname === to;
+              const active = pathname === to || (to === "/macros" && pathname === "/foto");
               return (
                 <Link
                   key={to}
@@ -83,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-xl md:hidden">
         <div className="mx-auto flex max-w-5xl items-stretch justify-between">
           {nav.map(({ to, label, icon: Icon }) => {
-            const active = pathname === to;
+            const active = pathname === to || (to === "/macros" && pathname === "/foto");
             return (
               <Link
                 key={to}

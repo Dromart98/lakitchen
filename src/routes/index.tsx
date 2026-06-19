@@ -1,16 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { MacroBar, Stat } from "@/components/MacroBar";
+import { MacroBar } from "@/components/MacroBar";
 import { useGoals, useMeals, useProducts, todayKey } from "@/lib/store";
-import { AlertTriangle, ArrowRight, Camera, ChefHat } from "lucide-react";
+import { useDietPlans } from "@/lib/dietPlans";
+import { ArrowRight, CalendarClock, ChefHat, Package, Plus, Salad, Sparkles, UtensilsCrossed } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "LaKitchen · Inicio" },
-      { name: "description", content: "Resumen diario de tus macros, inventario y alertas de stock bajo en tu cocina." },
+      { name: "description", content: "Resumen diario de tus macros, despensa y planes de dieta en LaKitchen." },
       { property: "og:title", content: "LaKitchen · Resumen del día" },
-      { property: "og:description", content: "Tu panel diario de macros, inventario y alertas de stock en LaKitchen." },
+      { property: "og:description", content: "Tu panel diario de macros, despensa y dieta en LaKitchen." },
       { property: "og:url", content: "https://lakitchenapp.com/" },
     ],
     links: [{ rel: "canonical", href: "https://lakitchenapp.com/" }],
@@ -22,6 +23,7 @@ function Home() {
   const [products] = useProducts();
   const [meals] = useMeals();
   const [goals] = useGoals();
+  const { plans } = useDietPlans();
 
   const today = todayKey();
   const todays = meals.filter((m) => m.date === today);
@@ -34,102 +36,118 @@ function Home() {
     }),
     { kcal: 0, protein: 0, carbs: 0, fat: 0 },
   );
-
-  const lowStock = products.filter((p) => p.quantity <= p.minStock);
+  const latestPlan = plans[0];
 
   return (
     <AppShell>
-      <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card p-6 shadow-card md:p-8">
-        <div className="absolute inset-0 -z-10 bg-gradient-hero opacity-80" />
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-widest text-primary">Hoy</div>
-            <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">
-              Resumen de mis macros y despensa
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground tabular-nums">
-              {Math.round(totals.kcal)} / {goals.kcal} kcal · {todays.length} comida{todays.length === 1 ? "" : "s"} registrada{todays.length === 1 ? "" : "s"}
-            </p>
-          </div>
-          <Link
-            to="/foto"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90"
-          >
-            <Camera className="h-4 w-4" /> Escanear comida
-          </Link>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          <MacroBar label="Proteína" value={totals.protein} goal={goals.protein} colorVar="protein" />
-          <MacroBar label="Carbohidratos" value={totals.carbs} goal={goals.carbs} colorVar="carbs" />
-          <MacroBar label="Grasas" value={totals.fat} goal={goals.fat} colorVar="fat" />
-        </div>
-      </section>
-
-      <section className="mt-6 grid gap-4 sm:grid-cols-3">
-        <Stat label="Productos" value={products.length} hint="en stock" />
-        <Stat
-          label="Stock bajo"
-          value={lowStock.length}
-          hint={lowStock.length ? "necesita reposición" : "todo en orden"}
-        />
-        <Stat
-          label="Restante hoy"
-          value={`${Math.max(0, goals.kcal - Math.round(totals.kcal))} kcal`}
-          hint={`${Math.max(0, goals.protein - Math.round(totals.protein))}g proteína`}
-        />
-      </section>
-
-      {lowStock.length > 0 && (
-        <section className="mt-6 rounded-2xl border border-warning/40 bg-warning/10 p-5">
-          <div className="flex items-center gap-2 text-warning">
-            <AlertTriangle className="h-5 w-5" />
-            <h2 className="font-display text-lg font-semibold">Te vas a quedar sin…</h2>
-          </div>
-          <ul className="mt-3 space-y-2">
-            {lowStock.slice(0, 6).map((p) => (
-              <li key={p.id} className="flex items-center justify-between text-sm">
-                <span>{p.name}</span>
-                <span className="font-mono text-warning">
-                  {p.quantity}{p.unit} · mín {p.minStock}{p.unit}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <Link to="/inventario" className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
-            Ver inventario <ArrowRight className="h-4 w-4" />
-          </Link>
+      <div className="space-y-5">
+        <section className="rounded-3xl border border-border/60 bg-card p-5 shadow-card md:p-7">
+          <div className="text-xs uppercase tracking-widest text-primary">Inicio</div>
+          <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">Hola, hoy cocinamos con calma</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Revisa tu objetivo diario, registra comidas y prepara tu próxima dieta desde un panel más claro.
+          </p>
         </section>
-      )}
 
-      <section className="mt-6 grid gap-4 md:grid-cols-2">
-        <Link
-          to="/dietas"
-          className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 shadow-card transition hover:border-primary/50"
-        >
-          <ChefHat className="h-7 w-7 text-primary" />
-          <h3 className="mt-3 font-display text-lg font-semibold">Dieta del día</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Genera un plan basado en lo que ya tienes y en tus objetivos.
-          </p>
-          <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
-            Generar <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-          </span>
-        </Link>
-        <Link
-          to="/macros"
-          className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 shadow-card transition hover:border-primary/50"
-        >
-          <div className="h-7 w-7 rounded-full bg-gradient-primary" />
-          <h3 className="mt-3 font-display text-lg font-semibold">Diario de macros</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Registra comidas manualmente y ajusta tus objetivos diarios.
-          </p>
-          <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
-            Abrir <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-          </span>
-        </Link>
-      </section>
+        <section className="rounded-3xl border border-border/60 bg-card p-5 shadow-card">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-primary">Objetivo diario</div>
+              <h2 className="mt-1 font-display text-2xl font-bold tracking-tight">
+                {Math.round(totals.kcal)} / {goals.kcal} kcal
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {todays.length} comida{todays.length === 1 ? "" : "s"} registrada{todays.length === 1 ? "" : "s"} hoy.
+              </p>
+            </div>
+            <Link to="/macros" className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow">
+              Registrar macros <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="mt-5 space-y-3">
+            <MacroBar label="Proteína" value={totals.protein} goal={goals.protein} colorVar="protein" />
+            <MacroBar label="Carbohidratos" value={totals.carbs} goal={goals.carbs} colorVar="carbs" />
+            <MacroBar label="Grasas" value={totals.fat} goal={goals.fat} colorVar="fat" />
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-primary/20 bg-primary/5 p-5 shadow-card">
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-primary shadow-glow">
+              <ChefHat className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs uppercase tracking-widest text-primary">Sugerencia de hoy</div>
+              <h2 className="mt-1 font-display text-xl font-semibold">Planifica con tu despensa y tus macros</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Genera una dieta usando lo que ya tienes y tus objetivos diarios restantes.
+              </p>
+              <Link to="/dietas" className="mt-3 inline-flex items-center gap-1 rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow">
+                Generar plan <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="font-display text-lg font-semibold">Accesos rápidos</h2>
+          <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <QuickLink to="/macros" icon={Plus} label="Añadir comida" />
+            <QuickLink to="/inventario" icon={Package} label="Despensa" />
+            <QuickLink to="/macros" icon={Salad} label="Registrar macros" />
+            <QuickLink to="/dietas" icon={Sparkles} label="Generar plan" />
+          </div>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2">
+          <article className="rounded-3xl border border-border/60 bg-card p-5 shadow-card">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5 text-primary" />
+              <h2 className="font-display text-lg font-semibold">Próximos productos a caducar</h2>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Todavía no hay caducidades registradas en tus productos. Cuando exista ese dato, aparecerá aquí de forma prioritaria.
+            </p>
+            <Link to="/inventario" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">
+              Revisar despensa <ArrowRight className="h-4 w-4" />
+            </Link>
+          </article>
+
+          <article className="rounded-3xl border border-border/60 bg-card p-5 shadow-card">
+            <div className="flex items-center gap-2">
+              <UtensilsCrossed className="h-5 w-5 text-primary" />
+              <h2 className="font-display text-lg font-semibold">Último plan generado</h2>
+            </div>
+            {latestPlan ? (
+              <>
+                <h3 className="mt-3 font-display text-xl font-semibold">{latestPlan.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {new Date(latestPlan.created_at).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {latestPlan.meals.length} comida{latestPlan.meals.length === 1 ? "" : "s"}
+                </p>
+                <Link to="/dietas" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">
+                  Ver plan <ArrowRight className="h-4 w-4" />
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="mt-3 text-sm text-muted-foreground">Aún no hay planes guardados. Crea uno desde Dieta cuando quieras organizar el día.</p>
+                <Link to="/dietas" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">
+                  Generar plan <ArrowRight className="h-4 w-4" />
+                </Link>
+              </>
+            )}
+          </article>
+        </section>
+      </div>
     </AppShell>
+  );
+}
+
+function QuickLink({ to, icon: Icon, label }: { to: "/macros" | "/inventario" | "/dietas"; icon: typeof Salad; label: string }) {
+  return (
+    <Link to={to} className="rounded-2xl border border-border/60 bg-card p-4 shadow-card transition hover:border-primary/40">
+      <Icon className="h-5 w-5 text-primary" />
+      <div className="mt-2 text-sm font-semibold">{label}</div>
+    </Link>
   );
 }
