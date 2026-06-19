@@ -4,7 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/store";
 import { useShoppingList } from "@/lib/shopping";
 import { estimateMeal } from "@/lib/estimate-meal-client";
-import { AlertTriangle, Check, Minus, Plus, Refrigerator, ShoppingCart, Snowflake, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
+import { AlertTriangle, Check, Loader2, Minus, Plus, Refrigerator, ShoppingCart, Snowflake, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/inventario")({
@@ -148,6 +148,12 @@ function ProductsView({
                     </span>
                   )}
                 </div>
+                {(p.brand || p.usualServing) && (
+                  <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                    {p.brand && <span className="truncate">{p.brand}</span>}
+                    {p.usualServing && <span>Ración habitual: {p.usualServing}</span>}
+                  </div>
+                )}
                 <div className="mt-0.5 text-xs text-muted-foreground">
                   {p.kcal} kcal · P{p.protein} · C{p.carbs} · G{p.fat} /{p.per === "100g" ? "100g" : "ud"}
                 </div>
@@ -288,6 +294,8 @@ function AddDialog({
   const [form, setForm] = useState<Product>({
     id: uid(),
     name: "",
+    brand: "",
+    usualServing: "",
     location: defaultLocation,
     quantity: 0,
     unit: "g",
@@ -300,6 +308,12 @@ function AddDialog({
   });
 
   const [estimating, setEstimating] = useState(false);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
+
+  function updateForm(next: Partial<Product>) {
+    setForm((current) => ({ ...current, ...next }));
+    setEstimateError(null);
+  }
 
   async function estimateMacros() {
     const name = form.name.trim();
@@ -308,11 +322,9 @@ function AddDialog({
       return;
     }
     setEstimating(true);
+    setEstimateError(null);
     try {
-      const unitLabel = form.per === "100g"
-        ? (form.unit === "ml" || form.unit === "l" ? "100 ml" : "100 g")
-        : "1 unidad";
-      const description = `Valor nutricional medio por ${unitLabel} de: ${name}. Devuelve kcal y macros para esa cantidad exacta.`;
+      const description = buildProductEstimateDescription(form, name);
       const data = await estimateMeal(description);
       setForm((f) => ({
         ...f,
@@ -323,7 +335,9 @@ function AddDialog({
       }));
       toast.success("Macros estimados con IA");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error estimando macros");
+      const message = getProductEstimateErrorMessage(e);
+      setEstimateError(message);
+      toast.error(message);
     } finally {
       setEstimating(false);
     }
@@ -332,7 +346,13 @@ function AddDialog({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) return;
-    onAdd({ ...form, id: uid() });
+    onAdd({
+      ...form,
+      id: uid(),
+      name: form.name.trim(),
+      brand: form.brand?.trim() || undefined,
+      usualServing: form.usualServing?.trim() || undefined,
+    });
     onClose();
   }
 
@@ -352,23 +372,30 @@ function AddDialog({
           disabled={estimating || !form.name.trim()}
           className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/15 disabled:opacity-50"
         >
-          <Sparkles className="h-4 w-4" />
+          {estimating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {estimating ? "Calculando…" : "Calcular macros con IA"}
         </button>
+        {estimateError && <p className="mt-2 text-xs text-destructive">{estimateError}</p>}
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <Field label="Nombre" className="col-span-2">
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputCls} placeholder="Pechuga de pollo" required />
+            <input value={form.name} onChange={(e) => updateForm({ name: e.target.value })} className={inputCls} placeholder="Pechuga de pollo" required />
+          </Field>
+          <Field label="Marca o supermercado" className="col-span-2 sm:col-span-1">
+            <input value={form.brand ?? ""} onChange={(e) => updateForm({ brand: e.target.value })} className={inputCls} placeholder="Ej. Hacendado, Lidl, Hiperdino" />
+          </Field>
+          <Field label="Ración habitual" className="col-span-2 sm:col-span-1">
+            <input value={form.usualServing ?? ""} onChange={(e) => updateForm({ usualServing: e.target.value })} className={inputCls} placeholder="Ej. 150 g, 1 lata, 2 huevos" />
           </Field>
           <Field label="Ubicación">
-            <select value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value as Location })} className={inputCls}>
+            <select value={form.location} onChange={(e) => updateForm({ location: e.target.value as Location })} className={inputCls}>
               <option value="despensa">Despensa</option>
               <option value="nevera">Nevera</option>
               <option value="congelador">Congelador</option>
             </select>
           </Field>
           <Field label="Unidad">
-            <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value as Unit })} className={inputCls}>
+            <select value={form.unit} onChange={(e) => updateForm({ unit: e.target.value as Unit })} className={inputCls}>
               <option value="g">gramos</option>
               <option value="kg">kg</option>
               <option value="ml">ml</option>
@@ -377,28 +404,28 @@ function AddDialog({
             </select>
           </Field>
           <Field label="Cantidad actual">
-            <input type="number" step="any" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: +e.target.value })} className={inputCls} />
+            <input type="number" step="any" value={form.quantity} onChange={(e) => updateForm({ quantity: +e.target.value })} className={inputCls} />
           </Field>
           <Field label="Stock mínimo">
-            <input type="number" step="any" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: +e.target.value })} className={inputCls} />
+            <input type="number" step="any" value={form.minStock} onChange={(e) => updateForm({ minStock: +e.target.value })} className={inputCls} />
           </Field>
           <Field label="Macros por">
-            <select value={form.per} onChange={(e) => setForm({ ...form, per: e.target.value as "100g" | "unit" })} className={inputCls}>
+            <select value={form.per} onChange={(e) => updateForm({ per: e.target.value as "100g" | "unit" })} className={inputCls}>
               <option value="100g">100 g/ml</option>
               <option value="unit">unidad</option>
             </select>
           </Field>
           <Field label="Kcal">
-            <input type="number" step="any" value={form.kcal} onChange={(e) => setForm({ ...form, kcal: +e.target.value })} className={inputCls} />
+            <input type="number" step="any" value={form.kcal} onChange={(e) => updateForm({ kcal: +e.target.value })} className={inputCls} />
           </Field>
           <Field label="Proteína (g)">
-            <input type="number" step="any" value={form.protein} onChange={(e) => setForm({ ...form, protein: +e.target.value })} className={inputCls} />
+            <input type="number" step="any" value={form.protein} onChange={(e) => updateForm({ protein: +e.target.value })} className={inputCls} />
           </Field>
           <Field label="Carbos (g)">
-            <input type="number" step="any" value={form.carbs} onChange={(e) => setForm({ ...form, carbs: +e.target.value })} className={inputCls} />
+            <input type="number" step="any" value={form.carbs} onChange={(e) => updateForm({ carbs: +e.target.value })} className={inputCls} />
           </Field>
           <Field label="Grasas (g)" className="col-span-2">
-            <input type="number" step="any" value={form.fat} onChange={(e) => setForm({ ...form, fat: +e.target.value })} className={inputCls} />
+            <input type="number" step="any" value={form.fat} onChange={(e) => updateForm({ fat: +e.target.value })} className={inputCls} />
           </Field>
         </div>
 
@@ -407,12 +434,36 @@ function AddDialog({
             Cancelar
           </button>
           <button type="submit" className="rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow">
-            Añadir
+            Guardar producto
           </button>
         </div>
       </form>
     </div>
   );
+}
+
+function buildProductEstimateDescription(form: Product, name: string) {
+  const unitLabel = form.per === "100g"
+    ? (form.unit === "ml" || form.unit === "l" ? "100 ml" : "100 g")
+    : "1 unidad";
+  const details = [
+    `Producto alimentario: ${name}`,
+    form.brand?.trim() ? `Marca o supermercado: ${form.brand.trim()}` : null,
+    form.usualServing?.trim() ? `Ración habitual orientativa: ${form.usualServing.trim()}` : null,
+    `Estima kcal, proteína, carbohidratos y grasas para ${unitLabel} de este producto.`,
+    "Responde con los valores correspondientes a esa unidad de referencia, no a todo el paquete.",
+  ].filter(Boolean);
+
+  return details.join(". ");
+}
+
+function getProductEstimateErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    if (error.message.includes("No parece una comida válida")) return "No parece un producto alimentario válido.";
+    return error.message;
+  }
+
+  return "Error estimando macros. Inténtalo de nuevo.";
 }
 
 const inputCls =
