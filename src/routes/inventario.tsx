@@ -3,8 +3,8 @@ import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/store";
 import { useShoppingList } from "@/lib/shopping";
-import { estimateMeal } from "@/lib/estimate-meal-client";
-import { AlertTriangle, Check, Loader2, Minus, Plus, Refrigerator, ShoppingCart, Snowflake, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
+import { estimateProductMacros } from "@/lib/estimate-product-macros-client";
+import { AlertTriangle, Check, Loader2, Minus, Plus, Refrigerator, ShoppingCart, Snowflake, Pencil, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/inventario")({
@@ -34,6 +34,7 @@ function Inventory() {
   const [section, setSection] = useState<Section>("products");
   const [tab, setTab] = useState<Location>("despensa");
   const [open, setOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const list = products.filter((p) => p.location === tab);
 
@@ -47,6 +48,24 @@ function Inventory() {
     setProducts((prev) => prev.filter((p) => p.id !== id));
   }
 
+  function openAddDialog() {
+    setEditingProduct(null);
+    setOpen(true);
+  }
+
+  function openEditDialog(product: Product) {
+    setEditingProduct(product);
+    setOpen(true);
+  }
+
+  function upsertProduct(product: Product) {
+    setProducts((prev) => {
+      const exists = prev.some((p) => p.id === product.id);
+      if (exists) return prev.map((p) => (p.id === product.id ? product : p));
+      return [product, ...prev];
+    });
+  }
+
   return (
     <AppShell>
       <div className="flex items-end justify-between">
@@ -56,7 +75,7 @@ function Inventory() {
         </div>
         {section === "products" && (
           <button
-            onClick={() => setOpen(true)}
+            onClick={openAddDialog}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow"
           >
             <Plus className="h-4 w-4" /> Añadir
@@ -82,21 +101,29 @@ function Inventory() {
       {section === "shopping" ? (
         <ShoppingListView />
       ) : (
-        <ProductsView products={products} list={list} tab={tab} setTab={setTab} adjust={adjust} remove={remove} />
+        <ProductsView products={products} list={list} tab={tab} setTab={setTab} adjust={adjust} remove={remove} edit={openEditDialog} />
       )}
 
       {open && section === "products" && (
-        <AddDialog defaultLocation={tab} onClose={() => setOpen(false)} onAdd={(p) => setProducts((prev) => [p, ...prev])} />
+        <ProductDialog
+          defaultLocation={tab}
+          product={editingProduct}
+          onClose={() => {
+            setOpen(false);
+            setEditingProduct(null);
+          }}
+          onSave={upsertProduct}
+        />
       )}
     </AppShell>
   );
 }
 
 function ProductsView({
-  products, list, tab, setTab, adjust, remove,
+  products, list, tab, setTab, adjust, remove, edit,
 }: {
   products: Product[]; list: Product[]; tab: Location;
-  setTab: (l: Location) => void; adjust: (id: string, d: number) => void; remove: (id: string) => void;
+  setTab: (l: Location) => void; adjust: (id: string, d: number) => void; remove: (id: string) => void; edit: (product: Product) => void;
 }) {
   return (
     <div>
@@ -168,7 +195,10 @@ function ProductsView({
                 <button onClick={() => adjust(p.id, stepFor(p))} className="rounded-lg border border-border bg-muted/50 p-2 hover:bg-muted" aria-label={`Añadir cantidad a ${p.name}`}>
                   <Plus className="h-4 w-4" />
                 </button>
-                <button onClick={() => remove(p.id)} className="ml-1 rounded-lg p-2 text-destructive hover:bg-destructive/10" aria-label={`Eliminar ${p.name} del inventario`}>
+                <button onClick={() => edit(p)} className="ml-1 rounded-lg p-2 text-muted-foreground hover:bg-muted" aria-label={`Editar ${p.name}`}>
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button onClick={() => remove(p.id)} className="rounded-lg p-2 text-destructive hover:bg-destructive/10" aria-label={`Eliminar ${p.name} del inventario`}>
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -282,16 +312,18 @@ function stepFor(p: Product) {
   return 50;
 }
 
-function AddDialog({
+function ProductDialog({
   defaultLocation,
+  product,
   onClose,
-  onAdd,
+  onSave,
 }: {
   defaultLocation: Location;
+  product: Product | null;
   onClose: () => void;
-  onAdd: (p: Product) => void;
+  onSave: (p: Product) => void;
 }) {
-  const [form, setForm] = useState<Product>({
+  const [form, setForm] = useState<Product>(product ?? {
     id: uid(),
     name: "",
     brand: "",
@@ -306,6 +338,7 @@ function AddDialog({
     carbs: 0,
     fat: 0,
   });
+  const isEditing = Boolean(product);
 
   const [estimating, setEstimating] = useState(false);
   const [estimateError, setEstimateError] = useState<string | null>(null);
@@ -318,14 +351,18 @@ function AddDialog({
   async function estimateMacros() {
     const name = form.name.trim();
     if (!name) {
-      toast.error("Escribe el nombre del producto");
+      setEstimateError("Escribe el nombre del producto antes de calcular macros.");
+      toast.error("Escribe el nombre del producto antes de calcular macros.");
       return;
     }
     setEstimating(true);
     setEstimateError(null);
     try {
-      const description = buildProductEstimateDescription(form, name);
-      const data = await estimateMeal(description);
+      const data = await estimateProductMacros({
+        name,
+        brand: form.brand,
+        usualServing: form.usualServing,
+      });
       setForm((f) => ({
         ...f,
         kcal: Math.round(data.kcal ?? 0),
@@ -333,7 +370,7 @@ function AddDialog({
         carbs: Math.round((data.carbs ?? 0) * 10) / 10,
         fat: Math.round((data.fat ?? 0) * 10) / 10,
       }));
-      toast.success("Macros estimados con IA");
+      toast.success("Macros estimados por 100 g con IA");
     } catch (e) {
       const message = getProductEstimateErrorMessage(e);
       setEstimateError(message);
@@ -346,9 +383,9 @@ function AddDialog({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) return;
-    onAdd({
+    onSave({
       ...form,
-      id: uid(),
+      id: form.id || uid(),
       name: form.name.trim(),
       brand: form.brand?.trim() || undefined,
       usualServing: form.usualServing?.trim() || undefined,
@@ -363,17 +400,18 @@ function AddDialog({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg rounded-t-3xl border border-border/60 bg-card p-6 shadow-card md:rounded-3xl"
       >
-        <h2 className="font-display text-xl font-bold">Nuevo producto</h2>
-        <p className="mt-1 text-xs text-muted-foreground">Valores nutricionales por 100g/ml o por unidad.</p>
+        <h2 className="font-display text-xl font-bold">{isEditing ? "Editar producto" : "Nuevo producto"}</h2>
+        <p className="mt-1 text-xs text-muted-foreground">Valores nutricionales por 100 g</p>
+        <p className="mt-1 text-xs text-muted-foreground">La IA rellenará una estimación. Revísala antes de guardar.</p>
 
         <button
           type="button"
           onClick={estimateMacros}
-          disabled={estimating || !form.name.trim()}
+          disabled={estimating}
           className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/15 disabled:opacity-50"
         >
           {estimating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {estimating ? "Calculando…" : "Calcular macros con IA"}
+          {estimating ? "Calculando…" : "Calcular por 100 g con IA"}
         </button>
         {estimateError && <p className="mt-2 text-xs text-destructive">{estimateError}</p>}
 
@@ -386,12 +424,6 @@ function AddDialog({
           </Field>
           <Field label="Ración habitual" className="col-span-2 sm:col-span-1">
             <input value={form.usualServing ?? ""} onChange={(e) => updateForm({ usualServing: e.target.value })} className={inputCls} placeholder="Ej. 150 g, 1 lata, 2 huevos" />
-          </Field>
-          <Field label="Marca o supermercado" className="col-span-2 sm:col-span-1">
-            <input value={form.brand ?? ""} onChange={(e) => setForm({ ...form, brand: e.target.value })} className={inputCls} placeholder="Ej. Hacendado, Lidl, Hiperdino" />
-          </Field>
-          <Field label="Ración habitual" className="col-span-2 sm:col-span-1">
-            <input value={form.usualServing ?? ""} onChange={(e) => setForm({ ...form, usualServing: e.target.value })} className={inputCls} placeholder="Ej. 150 g, 1 lata, 2 huevos" />
           </Field>
           <Field label="Ubicación">
             <select value={form.location} onChange={(e) => updateForm({ location: e.target.value as Location })} className={inputCls}>
@@ -440,7 +472,7 @@ function AddDialog({
             Cancelar
           </button>
           <button type="submit" className="rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow">
-            Guardar producto
+            {isEditing ? "Guardar cambios" : "Guardar producto"}
           </button>
         </div>
       </form>
@@ -448,24 +480,12 @@ function AddDialog({
   );
 }
 
-function buildProductEstimateDescription(form: Product, name: string) {
-  const unitLabel = form.per === "100g"
-    ? (form.unit === "ml" || form.unit === "l" ? "100 ml" : "100 g")
-    : "1 unidad";
-  const details = [
-    `Producto alimentario: ${name}`,
-    form.brand?.trim() ? `Marca o supermercado: ${form.brand.trim()}` : null,
-    form.usualServing?.trim() ? `Ración habitual orientativa: ${form.usualServing.trim()}` : null,
-    `Estima kcal, proteína, carbohidratos y grasas para ${unitLabel} de este producto.`,
-    "Responde con los valores correspondientes a esa unidad de referencia, no a todo el paquete.",
-  ].filter(Boolean);
-
-  return details.join(". ");
-}
 
 function getProductEstimateErrorMessage(error: unknown) {
   if (error instanceof Error) {
     if (error.message.includes("No parece una comida válida")) return "No parece un producto alimentario válido.";
+    if (error.message.includes("No parece un producto alimentario válido")) return "No parece un producto alimentario válido.";
+    if (error.message.includes("tardando demasiado")) return "La estimación está tardando demasiado. Prueba de nuevo.";
     return error.message;
   }
 
