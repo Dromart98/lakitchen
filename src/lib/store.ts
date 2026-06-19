@@ -11,6 +11,8 @@ export type Unit = "ud" | "g" | "kg" | "ml" | "l";
 export interface Product {
   id: string;
   name: string;
+  brand?: string;
+  usualServing?: string;
   location: Location;
   quantity: number;
   unit: Unit;
@@ -81,6 +83,8 @@ type ProductRow = {
   id: string;
   user_id: string;
   name: string;
+  brand?: string | null;
+  usual_serving?: string | null;
   location: Location;
   quantity: number | string;
   unit: Unit;
@@ -109,6 +113,8 @@ function rowToProduct(r: ProductRow): Product {
   return {
     id: r.id,
     name: r.name,
+    brand: r.brand ?? undefined,
+    usualServing: r.usual_serving ?? undefined,
     location: r.location,
     quantity: n(r.quantity),
     unit: r.unit,
@@ -125,6 +131,8 @@ function productToRow(p: Product, user_id: string) {
     id: p.id,
     user_id,
     name: p.name,
+    brand: p.brand?.trim() || null,
+    usual_serving: p.usualServing?.trim() || null,
     location: p.location,
     quantity: p.quantity,
     unit: p.unit,
