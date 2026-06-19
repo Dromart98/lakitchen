@@ -84,7 +84,13 @@ export async function handleEstimateMealRequest(request: Request): Promise<Respo
     const call = getToolCall(data);
     if (!call) return json({ error: "Sin respuesta de la IA" }, 500);
     try {
-      return json(normalizeEstimate(JSON.parse(call)));
+      const parsedEstimate = JSON.parse(call) as unknown;
+      const parsedRecord = getRecord(parsedEstimate);
+      if (parsedRecord?.isFood === false) {
+        logAiApiEvent({ endpoint: "estimate-meal", startedAt, code: "not_food", status: 400, userId: auth.userId, request });
+        return json({ error: "La descripción no parece una comida válida.", code: "not_food" }, 400);
+      }
+      return json(normalizeEstimate(parsedEstimate));
     } catch (error) {
       console.warn("[estimate-meal] OpenAI tool arguments were not parseable JSON", getSafeErrorLog(error));
       return json({ error: "Respuesta IA no parseable" }, 500);
@@ -102,7 +108,13 @@ function buildPayload(description: string) {
       {
         role: "system",
         content:
-          "Eres un nutricionista. Estima calorías y macronutrientes (proteína, carbohidratos, grasas en gramos) a partir de una descripción textual de una comida. Sé razonable con las porciones implícitas.",
+          [
+            "Eres un nutricionista. Primero valida si la descripción representa comida, alimento, bebida, plato o ingredientes.",
+            "Si la descripción no representa comida, alimento, bebida, plato o ingredientes, devuelve isFood: false y no inventes macros.",
+            "Ejemplos no válidos: ‘1 abuela’, ‘coche’, ‘hola’, ‘asdf’, ‘mi primo’, ‘una mesa’.",
+            "Ejemplos válidos: ‘150 g de pollo con arroz’, ‘tortilla de 2 huevos’, ‘ensalada con atún’, ‘café con leche’.",
+            "Solo si isFood es true, estima calorías y macronutrientes (proteína, carbohidratos, grasas en gramos). Sé razonable con las porciones implícitas.",
+          ].join(" "),
       },
       { role: "user", content: description },
     ],
@@ -111,11 +123,12 @@ function buildPayload(description: string) {
         type: "function",
         function: {
           name: "report_estimate",
-          description: "Devuelve los macros estimados para la comida descrita",
+          description: "Valida si la descripción es comida y, si lo es, devuelve los macros estimados",
           parameters: {
             type: "object",
             properties: {
-              name: { type: "string", description: "Nombre corto de la comida" },
+              isFood: { type: "boolean", description: "True solo si la descripción representa comida, alimento, bebida, plato o ingredientes" },
+              name: { type: "string", description: "Nombre corto de la comida; vacío si isFood es false" },
               kcal: { type: "number" },
               protein: { type: "number" },
               carbs: { type: "number" },
@@ -123,7 +136,7 @@ function buildPayload(description: string) {
               confidence: { type: "string", enum: ["baja", "media", "alta"] },
               notes: { type: "string" },
             },
-            required: ["name", "kcal", "protein", "carbs", "fat", "confidence", "notes"],
+            required: ["isFood", "name", "kcal", "protein", "carbs", "fat", "confidence", "notes"],
             additionalProperties: false,
           },
         },

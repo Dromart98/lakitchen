@@ -1,8 +1,7 @@
-import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MacroBar } from "@/components/MacroBar";
 import { useGoals } from "@/lib/store";
-import { ArrowRight, Calculator, Check } from "lucide-react";
+import { Calculator, Check, SlidersHorizontal } from "lucide-react";
 
 type Activity = "sedentary" | "light" | "moderate" | "active" | "very-active";
 type Objective = "lose" | "maintain" | "gain";
@@ -49,6 +48,8 @@ function calculateMacros(
 
 export function CalculadoraView() {
   const [, setGoals] = useGoals();
+  const formRef = useRef<HTMLFormElement>(null);
+  const firstInputRef = useRef<HTMLInputElement>(null);
   const [sex, setSex] = useState<"male" | "female">("male");
   const [weight, setWeight] = useState<number>(70);
   const [height, setHeight] = useState<number>(175);
@@ -70,6 +71,11 @@ export function CalculadoraView() {
     setApplied(true);
   }
 
+  function adjustCalculation() {
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => firstInputRef.current?.focus(), 250);
+  }
+
   return (
     <div>
       <h2 className="font-display text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -81,7 +87,7 @@ export function CalculadoraView() {
       </p>
 
       <section className="mt-5 grid gap-4 md:grid-cols-2">
-        <form onSubmit={handleCalculate} className="rounded-2xl border border-border/60 bg-card p-5 shadow-card">
+        <form ref={formRef} onSubmit={handleCalculate} className="rounded-2xl border border-border/60 bg-card p-5 shadow-card">
           <h3 className="font-display text-lg font-semibold">Tu perfil</h3>
           <div className="mt-3 space-y-3">
             <div className="flex gap-2">
@@ -89,7 +95,7 @@ export function CalculadoraView() {
               <button type="button" onClick={() => setSex("female")} className={btnToggle(sex === "female")}>Mujer</button>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <NumField label="Peso (kg)" value={weight} onChange={setWeight} min={30} max={300} />
+              <NumField inputRef={firstInputRef} label="Peso (kg)" value={weight} onChange={setWeight} min={30} max={300} />
               <NumField label="Altura (cm)" value={height} onChange={setHeight} min={100} max={250} />
               <NumField label="Edad" value={age} onChange={setAge} min={10} max={120} />
             </div>
@@ -118,7 +124,10 @@ export function CalculadoraView() {
         </form>
 
         <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-card">
-          <h3 className="font-display text-lg font-semibold">Resultado</h3>
+          <div>
+            <h3 className="font-display text-lg font-semibold">Macros recomendados</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Aplica estos valores para usarlos en tu seguimiento diario.</p>
+          </div>
           {!result ? (
             <div className="mt-8 text-center text-sm text-muted-foreground">
               Rellena tu perfil y pulsa “Calcular macros” para ver tu plan.
@@ -144,13 +153,13 @@ export function CalculadoraView() {
                 <MacroBar label="Carbohidratos" value={result.carbs} goal={result.carbs} colorVar="carbs" unit="g" />
                 <MacroBar label="Grasas" value={result.fat} goal={result.fat} colorVar="fat" unit="g" />
               </div>
-              <div className="flex gap-2">
-                <button onClick={applyToGoals} disabled={applied} className="flex-1 rounded-xl bg-gradient-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90 disabled:opacity-50">
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <button onClick={applyToGoals} disabled={applied} className="rounded-xl bg-gradient-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90 disabled:opacity-50">
                   {applied ? <span className="flex items-center justify-center gap-1"><Check className="h-4 w-4" /> Aplicado</span> : "Aplicar como objetivos"}
                 </button>
-                <Link to="/macros" className="inline-flex items-center gap-1 rounded-xl border border-border bg-background/60 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted">
-                  Ver macros <ArrowRight className="h-4 w-4" />
-                </Link>
+                <button type="button" onClick={adjustCalculation} className="inline-flex items-center justify-center gap-1 rounded-xl border border-border bg-background/60 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted">
+                  Ajustar cálculo <SlidersHorizontal className="h-4 w-4" />
+                </button>
               </div>
             </div>
           )}
@@ -170,11 +179,25 @@ function btnToggle(active: boolean) {
   );
 }
 
-function NumField({ label, value, onChange, min, max }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number }) {
+function NumField({
+  inputRef,
+  label,
+  value,
+  onChange,
+  min,
+  max,
+}: {
+  inputRef?: React.Ref<HTMLInputElement>;
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+}) {
   return (
     <label className="flex flex-col gap-1">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <input type="number" min={min} max={max} value={value} onChange={(e) => onChange(+e.target.value)} className="w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+      <input ref={inputRef} type="number" min={min} max={max} value={value} onChange={(e) => onChange(+e.target.value)} className="w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
     </label>
   );
 }
