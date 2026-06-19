@@ -43,9 +43,9 @@ function Home() {
       <div className="space-y-5">
         <section className="rounded-3xl border border-border/60 bg-card p-5 shadow-card md:p-7">
           <div className="text-xs uppercase tracking-widest text-primary">Inicio</div>
-          <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">Hola, hoy cocinamos con calma</h1>
+          <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">Hola</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Revisa tu objetivo diario, registra comidas y prepara tu próxima dieta desde un panel más claro.
+            Consulta tu objetivo diario, registra tus comidas y organiza tu plan de forma sencilla.
           </p>
         </section>
 

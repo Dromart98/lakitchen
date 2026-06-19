@@ -1,4 +1,4 @@
-export type AiRateLimitName = "generate-diet" | "analyze-meal" | "estimate-meal" | (string & {});
+export type AiRateLimitName = "generate-diet" | "analyze-meal" | "estimate-meal" | "estimate-product-macros" | (string & {});
 export type RateLimitScope = "user" | "ip";
 
 export type RateLimitConfig = {
@@ -29,6 +29,7 @@ export const aiRateLimits = {
   generateDiet: { name: "generate-diet", userLimit: 10, ipLimit: 30, windowMs: ONE_HOUR_MS },
   analyzeMeal: { name: "analyze-meal", userLimit: 15, ipLimit: 45, windowMs: ONE_HOUR_MS },
   estimateMeal: { name: "estimate-meal", userLimit: 20, ipLimit: 60, windowMs: ONE_HOUR_MS },
+  estimateProductMacros: { name: "estimate-product-macros", userLimit: 30, ipLimit: 90, windowMs: ONE_HOUR_MS },
 } satisfies Record<string, RateLimitConfig>;
 
 /**
