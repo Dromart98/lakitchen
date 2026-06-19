@@ -1,11 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MacroBar } from "@/components/MacroBar";
 import { CalculadoraView } from "@/components/CalculadoraView";
 import { HistorialView } from "@/components/HistorialView";
 import { todayKey, uid, useGoals, useMeals, useProducts, type Product } from "@/lib/store";
-import { BarChart3, Calculator, Loader2, Salad, Sparkles, Trash2, UtensilsCrossed, Wand2 } from "lucide-react";
+import { BarChart3, Calculator, Camera, Loader2, Salad, Sparkles, Trash2, UtensilsCrossed, Wand2 } from "lucide-react";
 import { estimateMeal, type EstimatedMeal } from "@/lib/estimate-meal-client";
 import { deductionsFromText } from "@/lib/consume";
 import { toast } from "sonner";
@@ -99,6 +99,9 @@ function TodayView() {
           <div className="mt-3 flex gap-1 rounded-xl bg-muted/40 p-1">
             <TabBtn active={mode === "manual"} onClick={() => setMode("manual")}>Manual</TabBtn>
             <TabBtn active={mode === "ai"} onClick={() => setMode("ai")}><Sparkles className="h-3.5 w-3.5" /> Texto IA</TabBtn>
+            <Link to="/foto" className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-card hover:text-foreground">
+              <Camera className="h-3.5 w-3.5" /> Foto
+            </Link>
             <TabBtn active={mode === "ingredients"} onClick={() => setMode("ingredients")}><UtensilsCrossed className="h-3.5 w-3.5" /> Ingredientes</TabBtn>
           </div>
           <div className="mt-4">

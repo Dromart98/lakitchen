@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { MacroBar } from "@/components/MacroBar";
-import { useGoals } from "@/lib/store";
-import { Calculator, Check, SlidersHorizontal } from "lucide-react";
+import { saveGoals } from "@/lib/store";
+import { Calculator, Check, Loader2, SlidersHorizontal } from "lucide-react";
 
 type Activity = "sedentary" | "light" | "moderate" | "active" | "very-active";
 type Objective = "lose" | "maintain" | "gain";
@@ -47,7 +47,6 @@ function calculateMacros(
 }
 
 export function CalculadoraView() {
-  const [, setGoals] = useGoals();
   const formRef = useRef<HTMLFormElement>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
   const [sex, setSex] = useState<"male" | "female">("male");
@@ -57,18 +56,31 @@ export function CalculadoraView() {
   const [activity, setActivity] = useState<Activity>("moderate");
   const [objective, setObjective] = useState<Objective>("maintain");
   const [result, setResult] = useState<Result | null>(null);
-  const [applied, setApplied] = useState(false);
+  const [isSavingGoals, setIsSavingGoals] = useState(false);
+  const [applyMessage, setApplyMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   function handleCalculate(e: React.FormEvent) {
     e.preventDefault();
     setResult(calculateMacros(sex, weight, height, age, activity, objective));
-    setApplied(false);
+    setApplyMessage(null);
   }
 
-  function applyToGoals() {
-    if (!result) return;
-    setGoals({ kcal: result.kcal, protein: result.protein, carbs: result.carbs, fat: result.fat });
-    setApplied(true);
+  async function applyToGoals() {
+    if (!result || isSavingGoals) return;
+
+    setIsSavingGoals(true);
+    setApplyMessage(null);
+    const { kcal, protein, carbs, fat } = result;
+
+    try {
+      await saveGoals({ kcal, protein, carbs, fat });
+      setApplyMessage({ type: "success", text: "Objetivos actualizados correctamente." });
+    } catch (error) {
+      console.error("[save goals]", error);
+      setApplyMessage({ type: "error", text: "No se pudieron guardar los objetivos. Inténtalo de nuevo." });
+    } finally {
+      setIsSavingGoals(false);
+    }
   }
 
   function adjustCalculation() {
@@ -154,13 +166,24 @@ export function CalculadoraView() {
                 <MacroBar label="Grasas" value={result.fat} goal={result.fat} colorVar="fat" unit="g" />
               </div>
               <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                <button onClick={applyToGoals} disabled={applied} className="rounded-xl bg-gradient-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90 disabled:opacity-50">
-                  {applied ? <span className="flex items-center justify-center gap-1"><Check className="h-4 w-4" /> Aplicado</span> : "Aplicar como objetivos"}
+                <button onClick={applyToGoals} disabled={isSavingGoals} className="rounded-xl bg-gradient-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90 disabled:opacity-50">
+                  {isSavingGoals ? (
+                    <span className="flex items-center justify-center gap-1"><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</span>
+                  ) : applyMessage?.type === "success" ? (
+                    <span className="flex items-center justify-center gap-1"><Check className="h-4 w-4" /> Aplicado</span>
+                  ) : (
+                    "Aplicar como objetivos"
+                  )}
                 </button>
                 <button type="button" onClick={adjustCalculation} className="inline-flex items-center justify-center gap-1 rounded-xl border border-border bg-background/60 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted">
                   Ajustar cálculo <SlidersHorizontal className="h-4 w-4" />
                 </button>
               </div>
+              {applyMessage && (
+                <p className={"text-sm " + (applyMessage.type === "success" ? "text-emerald-600" : "text-destructive")}>
+                  {applyMessage.text}
+                </p>
+              )}
             </div>
           )}
         </div>
