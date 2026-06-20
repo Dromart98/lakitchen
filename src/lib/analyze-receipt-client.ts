@@ -1,7 +1,7 @@
 import { authFetch } from "@/lib/auth-fetch";
 import type { Location, Unit } from "@/lib/store";
 
-const ANALYZE_RECEIPT_TIMEOUT_MS = 35000;
+const ANALYZE_RECEIPT_TIMEOUT_MS = 50000;
 
 export type ReceiptItem = {
   name: string;
@@ -38,12 +38,15 @@ export async function analyzeReceipt(imageBase64: string): Promise<ReceiptAnalys
       }, ANALYZE_RECEIPT_TIMEOUT_MS);
     });
 
+    const startedAt = performance.now();
     const res = await Promise.race([request, timeout]);
+    logAnalyzeReceiptDebug("request_completed", { duration_ms: Math.round(performance.now() - startedAt), status: res.status });
     const data = await readResponseBody(res);
     if (!res.ok) throw new Error(getAnalyzeReceiptErrorMessage(res.status, data));
     return normalizeReceiptAnalysis(data);
   } catch (error) {
-    if (isAbortError(error)) throw new Error("El análisis está tardando demasiado. Prueba con una foto más nítida o ligera.");
+    logAnalyzeReceiptDebug("request_failed", { error_name: error instanceof Error ? error.name : "unknown" });
+    if (isAbortError(error)) throw new Error("El análisis está tardando demasiado. Prueba con una foto tomada de frente, con buena luz y que no pese demasiado.");
     throw error;
   } finally {
     if (timeoutId !== undefined) window.clearTimeout(timeoutId);
@@ -61,9 +64,9 @@ function getAnalyzeReceiptErrorMessage(status: number, data: unknown): string {
   const apiError = typeof record?.error === "string" ? record.error : null;
   const code = typeof record?.code === "string" ? record.code : null;
   if (status === 401) return "Tu sesión ha caducado. Inicia sesión de nuevo para escanear tickets.";
-  if (status === 413 || code === "payload_too_large") return "La imagen es demasiado grande. Usa una foto más ligera.";
+  if (status === 413 || code === "payload_too_large") return "La imagen es demasiado pesada. Prueba con una foto más cercana o una imagen más ligera.";
   if (status === 429 || code === "rate_limited") return "Has alcanzado el límite de usos por ahora. Inténtalo más tarde.";
-  if (status === 504 || code === "openai_timeout") return "El análisis está tardando demasiado. Inténtalo de nuevo.";
+  if (status === 504 || code === "openai_timeout") return "El análisis está tardando demasiado. Prueba con una foto tomada de frente, con buena luz y que no pese demasiado.";
   if (code === "missing_openai_key") return "El análisis no está configurado en el servidor. Inténtalo más tarde.";
   return apiError ?? "No se pudo analizar el ticket. Inténtalo de nuevo.";
 }
@@ -85,7 +88,7 @@ function normalizeItem(value: unknown): ReceiptItem | null {
   if (!record) return null;
   const name = String(record.name ?? "").trim().slice(0, 100);
   if (!name) return null;
-  const unit = ["ud", "g", "kg", "ml", "l"].includes(String(record.unit)) ? (String(record.unit) as Unit) : "ud";
+  const unit = ["ud", "g", "kg", "ml", "l", "pack", "lata"].includes(String(record.unit)) ? (String(record.unit) as Unit) : "ud";
   const suggestedLocation = ["despensa", "nevera", "congelador"].includes(String(record.suggestedLocation)) ? (String(record.suggestedLocation) as Location) : "despensa";
   const confidence = ["baja", "media", "alta"].includes(String(record.confidence)) ? (String(record.confidence) as ReceiptItem["confidence"]) : "media";
   const price = record.price == null ? undefined : clamp(record.price, 100000);
@@ -95,3 +98,8 @@ function normalizeItem(value: unknown): ReceiptItem | null {
 function clamp(value: unknown, max: number) { const n = Number(value); if (!Number.isFinite(n) || n < 0) return 0; return Math.min(n, max); }
 function getRecord(value: unknown): Record<string, unknown> | null { return value && typeof value === "object" ? (value as Record<string, unknown>) : null; }
 function isAbortError(error: unknown): boolean { return (error instanceof DOMException && error.name === "AbortError") || (error instanceof Error && error.name === "AbortError"); }
+
+function logAnalyzeReceiptDebug(event: string, fields: Record<string, number | string>) {
+  if (!import.meta.env.DEV) return;
+  console.info(`[analyze-receipt] ${event}`, fields);
+}
