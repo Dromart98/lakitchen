@@ -43,7 +43,7 @@ export async function analyzeReceipt(imageBase64: string): Promise<ReceiptAnalys
     if (!res.ok) throw new Error(getAnalyzeReceiptErrorMessage(res.status, data));
     return normalizeReceiptAnalysis(data);
   } catch (error) {
-    if (isAbortError(error)) throw new Error("El análisis está tardando demasiado. Prueba con una foto más nítida o ligera.");
+    if (isAbortError(error)) throw new Error("El análisis está tardando demasiado. Prueba con una foto tomada de frente, con buena luz y que no pese demasiado.");
     throw error;
   } finally {
     if (timeoutId !== undefined) window.clearTimeout(timeoutId);
@@ -61,9 +61,9 @@ function getAnalyzeReceiptErrorMessage(status: number, data: unknown): string {
   const apiError = typeof record?.error === "string" ? record.error : null;
   const code = typeof record?.code === "string" ? record.code : null;
   if (status === 401) return "Tu sesión ha caducado. Inicia sesión de nuevo para escanear tickets.";
-  if (status === 413 || code === "payload_too_large") return "La imagen es demasiado grande. Usa una foto más ligera.";
+  if (status === 413 || code === "payload_too_large") return "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera.";
   if (status === 429 || code === "rate_limited") return "Has alcanzado el límite de usos por ahora. Inténtalo más tarde.";
-  if (status === 504 || code === "openai_timeout") return "El análisis está tardando demasiado. Inténtalo de nuevo.";
+  if (status === 504 || code === "openai_timeout") return "El análisis está tardando demasiado. Prueba con una foto tomada de frente, con buena luz y que no pese demasiado.";
   if (code === "missing_openai_key") return "El análisis no está configurado en el servidor. Inténtalo más tarde.";
   return apiError ?? "No se pudo analizar el ticket. Inténtalo de nuevo.";
 }

@@ -27,7 +27,7 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
       body = await readRequestJson(request, MAX_REQUEST_BYTES);
     } catch (error) {
       if (error instanceof PayloadTooLargeError) {
-        return json({ error: "La petición es demasiado grande.", code: "payload_too_large" }, 413);
+        return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera.", code: "payload_too_large" }, 413);
       }
       return json({ error: "JSON inválido" }, 400);
     }
@@ -46,7 +46,7 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
         body: JSON.stringify(buildPayload(validation)),
       });
     } catch (error) {
-      if (isAbortError(error)) return json({ error: "OpenAI request timed out", code: "openai_timeout" }, 504);
+      if (isAbortError(error)) return json({ error: "El análisis está tardando demasiado. Prueba con una foto tomada de frente, con buena luz y que no pese demasiado.", code: "openai_timeout" }, 504);
       console.error("[analyze-receipt] OpenAI request failed", getSafeErrorLog(error));
       return json({ error: "Error al conectar con OpenAI", code: "openai_network_error" }, 502);
     } finally {
@@ -57,7 +57,7 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
       console.warn("[analyze-receipt] OpenAI returned error", { status: upstream.status });
       if (upstream.status === 429) return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
       if (upstream.status === 401) return json({ error: "Configuración OpenAI inválida" }, 500);
-      if (upstream.status === 413) return json({ error: "La imagen es demasiado grande. Usa una foto más ligera." }, 413);
+      if (upstream.status === 413) return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera." }, 413);
       return json({ error: `Error OpenAI (${upstream.status})` }, 500);
     }
 
@@ -80,7 +80,7 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
 function validateImageInput(imageBase64: unknown): string | Response {
   if (!imageBase64 || typeof imageBase64 !== "string") return json({ error: "Falta imageBase64" }, 400);
   const value = imageBase64.trim();
-  if (value.length > MAX_IMAGE_BASE64_LENGTH) return json({ error: "La imagen es demasiado grande. Usa una foto más ligera." }, 413);
+  if (value.length > MAX_IMAGE_BASE64_LENGTH) return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera." }, 413);
   if (value.startsWith("data:")) {
     if (!ALLOWED_DATA_URL_PATTERN.test(value)) return json({ error: "Formato de imagen no válido" }, 400);
     return value;
