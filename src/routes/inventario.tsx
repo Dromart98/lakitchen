@@ -262,6 +262,8 @@ function ShoppingListView() {
             <option value="kg">kg</option>
             <option value="ml">ml</option>
             <option value="l">l</option>
+            <option value="pack">pack</option>
+            <option value="lata">lata</option>
           </select>
           <button disabled={!name.trim()} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
             <Plus className="h-4 w-4" /> Añadir
@@ -328,7 +330,7 @@ function ShoppingListView() {
 }
 
 function stepFor(p: Product) {
-  if (p.unit === "ud") return 1;
+  if (p.unit === "ud" || p.unit === "pack" || p.unit === "lata") return 1;
   if (p.unit === "kg" || p.unit === "l") return 0.1;
   return 50;
 }
@@ -392,7 +394,7 @@ function ReceiptScannerDialog({
       quantity: item.quantity,
       unit: item.unit,
       minStock: 0,
-      per: item.unit === "ud" ? "unit" : "100g",
+      per: item.unit === "ud" || item.unit === "pack" || item.unit === "lata" ? "unit" : "100g",
       kcal: 0,
       protein: 0,
       carbs: 0,
@@ -428,7 +430,7 @@ function ReceiptScannerDialog({
                 </Field>
                 <Field label="Unidad">
                   <select value={item.unit} onChange={(e) => updateItem(item.id, { unit: e.target.value as Unit })} className={inputCls}>
-                    <option value="ud">ud</option><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option>
+                    <option value="ud">ud</option><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option><option value="pack">pack</option><option value="lata">lata</option>
                   </select>
                 </Field>
                 <Field label="Ubicación">
@@ -586,6 +588,8 @@ function ProductDialog({
               <option value="ml">ml</option>
               <option value="l">litros</option>
               <option value="ud">unidades</option>
+              <option value="pack">pack</option>
+              <option value="lata">lata</option>
             </select>
           </Field>
           <Field label="Cantidad actual">
