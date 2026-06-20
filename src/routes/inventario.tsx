@@ -112,7 +112,7 @@ function Inventory() {
       {section === "shopping" ? (
         <ShoppingListView />
       ) : (
-        <ProductsView products={products} list={list} tab={tab} setTab={setTab} adjust={adjust} remove={remove} edit={openEditDialog} />
+        <ProductsView products={products} list={list} tab={tab} setTab={setTab} adjust={adjust} remove={remove} edit={openEditDialog} setProducts={setProducts} />
       )}
 
       {receiptOpen && section === "products" && (
@@ -142,11 +142,68 @@ function Inventory() {
 }
 
 function ProductsView({
-  products, list, tab, setTab, adjust, remove, edit,
+  products, list, tab, setTab, adjust, remove, edit, setProducts,
 }: {
   products: Product[]; list: Product[]; tab: Location;
   setTab: (l: Location) => void; adjust: (id: string, d: number) => void; remove: (id: string) => void; edit: (product: Product) => void;
+  setProducts: (next: Product[] | ((prev: Product[]) => Product[])) => void;
 }) {
+  const [estimatingProductId, setEstimatingProductId] = useState<string | null>(null);
+  const [macroMessages, setMacroMessages] = useState<Record<string, { type: "success" | "error"; text: string }>>({});
+
+  async function calculateMacros(product: Product) {
+    const name = product.name.trim();
+    if (!name) {
+      setMacroMessages((current) => ({
+        ...current,
+        [product.id]: { type: "error", text: "Escribe el nombre del producto antes de calcular macros." },
+      }));
+      return;
+    }
+
+    setEstimatingProductId(product.id);
+    setMacroMessages((current) => {
+      const { [product.id]: _previous, ...rest } = current;
+      return rest;
+    });
+
+    try {
+      const data = await estimateProductMacros({
+        name,
+        brand: product.brand,
+        usualServing: product.usualServing,
+      });
+      setProducts((prev) =>
+        prev.map((item) =>
+          item.id === product.id
+            ? {
+                ...item,
+                per: "100g",
+                kcal: Math.round(data.kcal ?? 0),
+                protein: Math.round((data.protein ?? 0) * 10) / 10,
+                carbs: Math.round((data.carbs ?? 0) * 10) / 10,
+                fat: Math.round((data.fat ?? 0) * 10) / 10,
+              }
+            : item,
+        ),
+      );
+      setMacroMessages((current) => ({
+        ...current,
+        [product.id]: { type: "success", text: "Macros actualizados" },
+      }));
+      toast.success("Macros actualizados");
+    } catch (e) {
+      const message = getProductEstimateErrorMessage(e);
+      setMacroMessages((current) => ({
+        ...current,
+        [product.id]: { type: "error", text: message },
+      }));
+      toast.error(message);
+    } finally {
+      setEstimatingProductId(null);
+    }
+  }
+
   return (
     <div>
 
@@ -180,6 +237,9 @@ function ProductsView({
         )}
         {list.map((p) => {
           const low = p.quantity <= p.minStock;
+          const macrosPending = hasPendingMacros(p);
+          const isEstimating = estimatingProductId === p.id;
+          const macroMessage = macroMessages[p.id];
           return (
             <li
               key={p.id}
@@ -206,6 +266,27 @@ function ProductsView({
                 <div className="mt-0.5 text-xs text-muted-foreground">
                   {p.kcal} kcal · P{p.protein} · C{p.carbs} · G{p.fat} /{p.per === "100g" ? "100g" : "ud"}
                 </div>
+                {(macrosPending || macroMessage) && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {macrosPending && <span className="text-xs font-medium text-warning">Macros pendientes</span>}
+                    {macrosPending && (
+                      <button
+                        type="button"
+                        onClick={() => void calculateMacros(p)}
+                        disabled={isEstimating}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/15 disabled:opacity-50"
+                      >
+                        {isEstimating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                        {isEstimating ? "Calculando…" : "Calcular por 100 g con IA"}
+                      </button>
+                    )}
+                    {macroMessage && (
+                      <span className={"text-xs " + (macroMessage.type === "success" ? "text-primary" : "text-destructive")}>
+                        {macroMessage.text}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => adjust(p.id, -stepFor(p))} className="rounded-lg border border-border bg-muted/50 p-2 hover:bg-muted" aria-label={`Restar cantidad a ${p.name}`}>
@@ -328,6 +409,10 @@ function ShoppingListView() {
       )}
     </div>
   );
+}
+
+function hasPendingMacros(product: Product) {
+  return product.kcal === 0 && product.protein === 0 && product.carbs === 0 && product.fat === 0;
 }
 
 function stepFor(p: Product) {
@@ -702,8 +787,10 @@ function buildProductEstimateDescription(form: Product, name: string) {
 
 function getProductEstimateErrorMessage(error: unknown) {
   if (error instanceof Error) {
-    if (error.message.includes("No parece una comida válida")) return "No parece un producto alimentario válido.";
-    if (error.message.includes("tardando demasiado")) return "La estimación está tardando demasiado. Prueba con un nombre más concreto.";
+    const message = error.message.toLowerCase();
+    if (message.includes("not_food") || message.includes("no parece una comida válida") || message.includes("no parece un producto alimentario válido")) return "No parece un producto alimentario válido.";
+    if (message.includes("timeout") || message.includes("tardando demasiado")) return "La estimación está tardando demasiado. Prueba de nuevo.";
+    if (message.includes("rate") || message.includes("429") || message.includes("demasiadas")) return "Has hecho demasiadas estimaciones seguidas. Espera un momento y prueba de nuevo.";
     return error.message;
   }
 
