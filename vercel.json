@@ -8,5 +8,10 @@
       "source": "/((?!api(?:/|$)).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/analyze-receipt.ts": {
+      "maxDuration": 60
+    }
+  }
 }
