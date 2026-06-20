@@ -256,6 +256,7 @@ function ProductsView({
                       <AlertTriangle className="h-3 w-3" /> stock bajo
                     </span>
                   )}
+                  {macrosPending && <span className="text-xs font-medium text-warning">Macros pendientes</span>}
                 </div>
                 {(p.brand || p.usualServing) && (
                   <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
@@ -422,8 +423,8 @@ function stepFor(p: Product) {
 }
 
 
-const MAX_RECEIPT_IMAGE_SIDE = 1600;
-const RECEIPT_IMAGE_QUALITY = 0.85;
+const MAX_RECEIPT_IMAGE_SIDE = 1200;
+const RECEIPT_IMAGE_QUALITY = 0.78;
 const MAX_RECEIPT_DATA_URL_LENGTH = 7.5 * 1024 * 1024;
 const ACCEPTED_RECEIPT_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
@@ -456,21 +457,23 @@ function ReceiptScannerDialog({
     try {
       validateReceiptFile(file);
       const prepareStartedAt = performance.now();
-      console.info("[analyze-receipt] image preparation started", {
-        fileApproxKb: Math.round(file.size / 1024),
-        fileType: file.type,
+      console.info("[analyze-receipt] image_prepare_start", {
+        original_file_size_bytes: file.size,
+        file_type: file.type,
+        max_side_px: MAX_RECEIPT_IMAGE_SIDE,
+        quality: RECEIPT_IMAGE_QUALITY,
       });
       const imageBase64 = await fileToDataUrl(file);
       const compressedImage = await compressReceiptImage(imageBase64);
-      console.info("[analyze-receipt] image preparation finished", {
-        originalApproxKb: Math.round(dataUrlApproxBytes(imageBase64) / 1024),
-        preparedApproxKb: Math.round(dataUrlApproxBytes(compressedImage) / 1024),
-        durationMs: Math.round(performance.now() - prepareStartedAt),
+      console.info("[analyze-receipt] image_prepare_done", {
+        original_data_url_size_bytes: dataUrlApproxBytes(imageBase64),
+        compressed_data_url_size_bytes: dataUrlApproxBytes(compressedImage),
+        compression_duration_ms: Math.round(performance.now() - prepareStartedAt),
       });
       setCompressionInfo(getCompressionInfo(imageBase64, compressedImage));
       const analyzeStartedAt = performance.now();
       const result = await analyzeReceipt(compressedImage);
-      console.info("[analyze-receipt] api call finished", { durationMs: Math.round(performance.now() - analyzeStartedAt) });
+      console.info("[analyze-receipt] api_call_done", { api_duration_ms: Math.round(performance.now() - analyzeStartedAt) });
       setAnalysis(result);
       setItems(result.items.map((item) => ({ ...item, id: uid(), selected: true, location: item.suggestedLocation ?? defaultLocation })));
       if (result.items.length === 0) setError(result.message ?? "No he podido detectar productos claros. Prueba con una foto más nítida y tomada de frente.");
@@ -586,7 +589,7 @@ function getCompressionInfo(original: string, compressed: string) {
   const originalKb = Math.round(dataUrlApproxBytes(original) / 1024);
   const compressedKb = Math.round(dataUrlApproxBytes(compressed) / 1024);
   if (compressed.length >= original.length) return `Imagen preparada para análisis (~${compressedKb} KB).`;
-  return `Imagen optimizada para análisis: ~${originalKb} KB → ~${compressedKb} KB.`;
+  return `Imagen optimizada para análisis: ~${originalKb} KB → ~${compressedKb} KB (máx. ${MAX_RECEIPT_IMAGE_SIDE}px, calidad ${Math.round(RECEIPT_IMAGE_QUALITY * 100)}%).`;
 }
 
 function dataUrlApproxBytes(dataUrl: string) {

@@ -3,7 +3,7 @@ import { aiRateLimits, checkRateLimitForRequest, rateLimitExceededResponse } fro
 
 interface Body { imageBase64: string }
 
-const OPENAI_TIMEOUT_MS = 30000;
+const OPENAI_TIMEOUT_MS = 45000;
 const MAX_IMAGE_BASE64_LENGTH = 8 * 1024 * 1024;
 const MAX_REQUEST_BYTES = 9 * 1024 * 1024;
 const ALLOWED_DATA_URL_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/i;
@@ -11,7 +11,7 @@ const EMPTY_MESSAGE = "No he podido detectar productos claros. Prueba con una fo
 
 export async function handleAnalyzeReceiptRequest(request: Request): Promise<Response> {
   const handlerStartedAt = Date.now();
-  console.info("[analyze-receipt] handler started", { method: request.method });
+  console.info("[analyze-receipt] request_start", { method: request.method });
   if (request.method !== "POST") return json({ error: "Method not allowed", code: "method_not_allowed" }, 405);
 
   try {
@@ -27,9 +27,9 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
     let body: Body;
     try {
       body = await readRequestJson(request, MAX_REQUEST_BYTES);
-      console.info("[analyze-receipt] request payload received", {
-        payloadApproxKb: Math.round(new TextEncoder().encode(JSON.stringify(body)).byteLength / 1024),
-        imageApproxKb: typeof body.imageBase64 === "string" ? Math.round(((body.imageBase64.split(",")[1] ?? body.imageBase64).length * 3) / 4 / 1024) : 0,
+      console.info("[analyze-receipt] payload_received", {
+        payload_size_bytes: new TextEncoder().encode(JSON.stringify(body)).byteLength,
+        image_data_url_size_bytes: typeof body.imageBase64 === "string" ? dataUrlApproxBytes(body.imageBase64) : 0,
       });
     } catch (error) {
       if (error instanceof PayloadTooLargeError) {
@@ -43,14 +43,15 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.warn("[analyze-receipt] OpenAI timeout reached", { timeoutMs: OPENAI_TIMEOUT_MS });
+      console.warn("[analyze-receipt] openai_timeout_after_ms", { timeout_ms: OPENAI_TIMEOUT_MS });
       controller.abort();
     }, OPENAI_TIMEOUT_MS);
     let upstream: Response;
     const openAiStartedAt = Date.now();
-    console.info("[analyze-receipt] OpenAI request started", {
-      imageUrlApproxKb: Math.round(((validation.split(",")[1] ?? validation).length * 3) / 4 / 1024),
-      timeoutMs: OPENAI_TIMEOUT_MS,
+    console.info("[analyze-receipt] openai_start", {
+      image_data_url_size_bytes: dataUrlApproxBytes(validation),
+      before_openai_ms: openAiStartedAt - handlerStartedAt,
+      timeout_ms: OPENAI_TIMEOUT_MS,
     });
     try {
       upstream = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -60,11 +61,14 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
         body: JSON.stringify(buildPayload(validation)),
       });
     } catch (error) {
-      if (isAbortError(error)) return json({ error: "El análisis está tardando demasiado. Prueba con una foto tomada de frente, con buena luz y que no pese demasiado.", code: "openai_timeout" }, 504);
+      if (isAbortError(error)) {
+        console.warn("[analyze-receipt] openai_abort_timeout", { openai_duration_ms: Date.now() - openAiStartedAt, timeout_ms: OPENAI_TIMEOUT_MS });
+        return json({ error: "El análisis está tardando demasiado. Prueba con una foto tomada de frente, con buena luz y que no pese demasiado.", code: "openai_timeout" }, 504);
+      }
       console.error("[analyze-receipt] OpenAI request failed", getSafeErrorLog(error));
       return json({ error: "Error al conectar con OpenAI", code: "openai_network_error" }, 502);
     } finally {
-      console.info("[analyze-receipt] OpenAI request finished", { durationMs: Date.now() - openAiStartedAt });
+      console.info("[analyze-receipt] openai_duration_ms", { duration_ms: Date.now() - openAiStartedAt });
       clearTimeout(timeoutId);
     }
 
@@ -90,7 +94,7 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
     console.error("[analyze-receipt] Unexpected error", getSafeErrorLog(error));
     return json({ error: "Error al analizar el ticket" }, 500);
   } finally {
-    console.info("[analyze-receipt] handler finished", { durationMs: Date.now() - handlerStartedAt });
+    console.info("[analyze-receipt] total_duration_ms", { duration_ms: Date.now() - handlerStartedAt });
   }
 }
 
@@ -116,12 +120,12 @@ function buildPayload(dataUrl: string) {
   return {
     model: "gpt-4o-mini",
     messages: [
-      { role: "system", content: "Eres un asistente que extrae productos alimentarios de tickets reales de supermercado. Sé tolerante con texto borroso, torcido, en mayúsculas, abreviaturas y cantidades o precios en líneas separadas. Detecta productos alimentarios aunque la confianza sea baja, pero no inventes productos. Ignora bolsas, aceite sintético, descuentos, impuestos, total, subtotal, tarjeta, pagos, cambio y promociones no asociadas a un producto. Normaliza ejemplos como PECHUGA PAVO S/GR a Pechuga de pavo, PECHUGA POLLO FILE a Pechuga de pollo fileteada, ALBONDIGAS ATUN a Albóndigas de atún, FILETES ATUN SALSA a Filetes de atún en salsa, ZUMO NARANJA X6 a Zumo de naranja x6, PAN S/CORTEZA 450G a Pan sin corteza 450 g, y FANTA NARANJA LATA + 8 x 0,43 a Fanta naranja lata con quantity 8 y unit lata. Usa solo unidades ud, g, kg, ml, l, pack o lata. Sugiere ubicación entre despensa, nevera o congelador. Si no hay productos claros, items debe ser [] y message debe pedir una foto más nítida y tomada de frente." },
-      { role: "user", content: [{ type: "text", text: "Analiza este ticket y devuelve tienda, fecha si aparece y productos alimentarios detectados. Devuelve todos los alimentos plausibles, incluso con confianza baja." }, { type: "image_url", image_url: { url: dataUrl } }] },
+      { role: "system", content: "Extrae productos alimentarios de tickets reales de supermercado. Sé tolerante con texto borroso, abreviaturas, mayúsculas y cantidades/precios en líneas cercanas, pero no inventes. Ignora descuentos, totales, pagos, impuestos, bolsas y promociones sin producto. Normaliza nombres breves (ej.: PECHUGA PAVO S/GR -> Pechuga de pavo; PAN S/CORTEZA 450G -> Pan sin corteza 450 g; FANTA NARANJA LATA + 8 -> Fanta naranja lata, quantity 8, unit lata). Usa solo unidades ud, g, kg, ml, l, pack o lata y ubicación despensa/nevera/congelador. Responde estrictamente con el JSON de la herramienta, corto. Si no hay alimentos claros, items=[] y message breve pidiendo foto más nítida de frente." },
+      { role: "user", content: [{ type: "text", text: "Devuelve tienda, fecha si aparece y alimentos plausibles del ticket. JSON corto." }, { type: "image_url", image_url: { url: dataUrl } }] },
     ],
     tools: [{ type: "function", function: { name: "report_receipt", description: "Productos alimentarios detectados en un ticket", parameters: { type: "object", properties: { store: { type: "string" }, date: { type: "string" }, items: { type: "array", items: { type: "object", properties: { name: { type: "string" }, quantity: { type: "number" }, unit: { type: "string", enum: ["ud", "g", "kg", "ml", "l", "pack", "lata"] }, price: { type: "number" }, suggestedLocation: { type: "string", enum: ["despensa", "nevera", "congelador"] }, confidence: { type: "string", enum: ["baja", "media", "alta"] } }, required: ["name", "quantity", "unit", "suggestedLocation", "confidence"], additionalProperties: false } }, message: { type: "string" } }, required: ["items"], additionalProperties: false } } }],
     tool_choice: { type: "function", function: { name: "report_receipt" } },
-    max_tokens: 1000,
+    max_tokens: 700,
   };
 }
 
@@ -130,6 +134,7 @@ function getToolArguments(data: unknown): string | null { const choices = getRec
 function getRecord(value: unknown): Record<string, unknown> | null { return value && typeof value === "object" ? (value as Record<string, unknown>) : null; }
 function isAbortError(error: unknown): boolean { return (error instanceof DOMException && error.name === "AbortError") || (error instanceof Error && error.name === "AbortError"); }
 function getSafeErrorLog(error: unknown): { name?: string; message?: string } { if (error instanceof Error) return { name: error.name, message: error.message }; return { message: String(error) }; }
+function dataUrlApproxBytes(dataUrl: string) { const base64 = dataUrl.split(",")[1] ?? dataUrl; return Math.floor((base64.length * 3) / 4); }
 function clamp(n: number, max: number) { if (!Number.isFinite(n) || n < 0) return 0; return Math.min(n, max); }
 function normalize(r: Record<string, unknown>) {
   const rawItems = Array.isArray(r.items) ? r.items : [];
