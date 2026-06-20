@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/store";
 import { useShoppingList } from "@/lib/shopping";
-import { estimateProductMacros } from "@/lib/estimate-product-macros-client";
-import { analyzeReceipt, type ReceiptAnalysis, type ReceiptItem } from "@/lib/analyze-receipt-client";
+import { EstimateProductMacrosError, estimateProductMacros } from "@/lib/estimate-product-macros-client";
+import { AnalyzeReceiptError, analyzeReceipt, type ReceiptAnalysis, type ReceiptItem } from "@/lib/analyze-receipt-client";
 import { compressImage } from "@/lib/compress";
 import { AlertTriangle, Check, Loader2, Minus, Plus, ReceiptText, Refrigerator, ShoppingCart, Snowflake, Pencil, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
@@ -440,14 +440,23 @@ function ReceiptScannerDialog({
   onAdd: (products: Product[]) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const activeReceiptRequestRef = useRef<AbortController | null>(null);
   const [analysis, setAnalysis] = useState<ReceiptAnalysis | null>(null);
   const [items, setItems] = useState<ReviewReceiptItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [compressionInfo, setCompressionInfo] = useState<string | null>(null);
 
+  useEffect(() => () => {
+    activeReceiptRequestRef.current?.abort("receipt_dialog_unmounted");
+    activeReceiptRequestRef.current = null;
+  }, []);
+
   async function handleFile(file: File | undefined) {
     if (!file) return;
+    activeReceiptRequestRef.current?.abort("new_receipt_scan_started");
+    const requestController = new AbortController();
+    activeReceiptRequestRef.current = requestController;
     setLoading(true);
     setError(null);
     setAnalysis(null);
@@ -457,8 +466,8 @@ function ReceiptScannerDialog({
     try {
       validateReceiptFile(file);
       const prepareStartedAt = performance.now();
-      console.info("[analyze-receipt] image_prepare_start", {
-        original_file_size_bytes: file.size,
+      console.info("[analyze-receipt] analyze_receipt_start", {
+        original_file_size: file.size,
         file_type: file.type,
         max_side_px: MAX_RECEIPT_IMAGE_SIDE,
         quality: RECEIPT_IMAGE_QUALITY,
@@ -467,23 +476,27 @@ function ReceiptScannerDialog({
       const compressedImage = await compressReceiptImage(imageBase64);
       console.info("[analyze-receipt] image_prepare_done", {
         original_data_url_size_bytes: dataUrlApproxBytes(imageBase64),
-        compressed_data_url_size_bytes: dataUrlApproxBytes(compressedImage),
+        compressed_data_url_size: dataUrlApproxBytes(compressedImage),
         compression_duration_ms: Math.round(performance.now() - prepareStartedAt),
       });
       setCompressionInfo(getCompressionInfo(imageBase64, compressedImage));
       const analyzeStartedAt = performance.now();
-      const result = await analyzeReceipt(compressedImage);
+      const result = await analyzeReceipt(compressedImage, { signal: requestController.signal });
       console.info("[analyze-receipt] api_call_done", { api_duration_ms: Math.round(performance.now() - analyzeStartedAt) });
       setAnalysis(result);
       setItems(result.items.map((item) => ({ ...item, id: uid(), selected: true, location: item.suggestedLocation ?? defaultLocation })));
       if (result.items.length === 0) setError(result.message ?? "No he podido detectar productos claros. Prueba con una foto más nítida y tomada de frente.");
       success = true;
     } catch (e) {
+      if (e instanceof AnalyzeReceiptError && e.code === "request_aborted") return;
       const message = e instanceof Error ? e.message : "No se pudo analizar el ticket. Inténtalo de nuevo.";
       setError(message);
       toast.error(message);
     } finally {
-      setLoading(false);
+      if (activeReceiptRequestRef.current === requestController) {
+        activeReceiptRequestRef.current = null;
+        setLoading(false);
+      }
       if (success && fileInputRef.current) fileInputRef.current.value = "";
     }
   }
@@ -776,28 +789,19 @@ function ProductDialog({
   );
 }
 
-function buildProductEstimateDescription(form: Product, name: string) {
-  const details = [
-    `Estima los valores nutricionales por 100 g del producto: ${name}`,
-    form.brand?.trim() ? `Marca/supermercado: ${form.brand.trim()}` : null,
-    form.usualServing?.trim() ? `Ración habitual: ${form.usualServing.trim()}` : null,
-    "Devuelve kcal, proteína, carbohidratos y grasas por 100 g o 100 ml si claramente es líquido.",
-    "No calcules el paquete completo ni guardes el producto automáticamente.",
-  ].filter(Boolean);
-
-  return details.join(". ");
-}
-
 function getProductEstimateErrorMessage(error: unknown) {
+  if (error instanceof EstimateProductMacrosError) {
+    if (error.code === "not_food") return "No parece un producto alimentario válido.";
+    if (error.code === "timeout" || error.code === "openai_timeout") return "La estimación está tardando demasiado. Prueba de nuevo.";
+    return error.message;
+  }
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
     if (message.includes("not_food") || message.includes("no parece una comida válida") || message.includes("no parece un producto alimentario válido")) return "No parece un producto alimentario válido.";
     if (message.includes("timeout") || message.includes("tardando demasiado")) return "La estimación está tardando demasiado. Prueba de nuevo.";
-    if (message.includes("rate") || message.includes("429") || message.includes("demasiadas")) return "Has hecho demasiadas estimaciones seguidas. Espera un momento y prueba de nuevo.";
-    return error.message;
   }
 
-  return "Error estimando macros. Inténtalo de nuevo.";
+  return "No se pudo estimar este producto automáticamente. Prueba con un nombre más concreto o introduce los macros manualmente.";
 }
 
 const inputCls =

@@ -3,7 +3,7 @@ import { aiRateLimits, checkRateLimitForRequest, rateLimitExceededResponse } fro
 
 interface Body { imageBase64: string }
 
-const OPENAI_TIMEOUT_MS = 45000;
+const OPENAI_TIMEOUT_MS = 50000;
 const MAX_IMAGE_BASE64_LENGTH = 8 * 1024 * 1024;
 const MAX_REQUEST_BYTES = 9 * 1024 * 1024;
 const ALLOWED_DATA_URL_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/i;
@@ -35,7 +35,7 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
       if (error instanceof PayloadTooLargeError) {
         return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera.", code: "payload_too_large" }, 413);
       }
-      return json({ error: "JSON inválido" }, 400);
+      return json({ error: "JSON inválido", code: "invalid_json" }, 400);
     }
 
     const validation = validateImageInput(body.imageBase64);
@@ -62,51 +62,51 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
       });
     } catch (error) {
       if (isAbortError(error)) {
-        console.warn("[analyze-receipt] openai_abort_timeout", { openai_duration_ms: Date.now() - openAiStartedAt, timeout_ms: OPENAI_TIMEOUT_MS });
+        console.warn("[analyze-receipt] openai_timeout_after_ms", { timeout_ms: OPENAI_TIMEOUT_MS, duration_ms: Date.now() - openAiStartedAt });
         return json({ error: "El análisis está tardando demasiado. Prueba con una foto tomada de frente, con buena luz y que no pese demasiado.", code: "openai_timeout" }, 504);
       }
-      console.error("[analyze-receipt] OpenAI request failed", getSafeErrorLog(error));
+      console.warn("[analyze-receipt] openai_error_duration_ms", { duration_ms: Date.now() - openAiStartedAt, ...getSafeErrorLog(error) });
       return json({ error: "Error al conectar con OpenAI", code: "openai_network_error" }, 502);
     } finally {
-      console.info("[analyze-receipt] openai_duration_ms", { duration_ms: Date.now() - openAiStartedAt });
       clearTimeout(timeoutId);
     }
 
     if (!upstream.ok) {
-      console.warn("[analyze-receipt] OpenAI returned error", { status: upstream.status });
-      if (upstream.status === 429) return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
-      if (upstream.status === 401) return json({ error: "Configuración OpenAI inválida" }, 500);
-      if (upstream.status === 413) return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera." }, 413);
-      return json({ error: `Error OpenAI (${upstream.status})` }, 500);
+      console.warn("[analyze-receipt] openai_error_duration_ms", { duration_ms: Date.now() - openAiStartedAt, status: upstream.status });
+      if (upstream.status === 429) return json({ error: "Límite de uso alcanzado. Intenta más tarde.", code: "rate_limited" }, 429);
+      if (upstream.status === 401) return json({ error: "Configuración OpenAI inválida", code: "openai_auth_error" }, 500);
+      if (upstream.status === 413) return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera.", code: "payload_too_large" }, 413);
+      return json({ error: `Error OpenAI (${upstream.status})`, code: "openai_error" }, 502);
     }
 
+    console.info("[analyze-receipt] openai_success_duration_ms", { duration_ms: Date.now() - openAiStartedAt, status: upstream.status });
     const data = await readJson(upstream);
     const args = getToolArguments(data);
-    if (!args) return json({ error: "Sin respuesta de la IA" }, 500);
+    if (!args) return json({ error: "Sin respuesta de la IA", code: "unknown_error" }, 502);
 
     try {
       return json(normalize(JSON.parse(args)));
     } catch (error) {
       console.warn("[analyze-receipt] OpenAI tool arguments were not parseable JSON", getSafeErrorLog(error));
-      return json({ error: "Respuesta IA no parseable" }, 500);
+      return json({ error: "Respuesta IA no parseable", code: "unknown_error" }, 502);
     }
   } catch (error) {
     console.error("[analyze-receipt] Unexpected error", getSafeErrorLog(error));
-    return json({ error: "Error al analizar el ticket" }, 500);
+    return json({ error: "Error al analizar el ticket", code: "unknown_error" }, 500);
   } finally {
     console.info("[analyze-receipt] total_duration_ms", { duration_ms: Date.now() - handlerStartedAt });
   }
 }
 
 function validateImageInput(imageBase64: unknown): string | Response {
-  if (!imageBase64 || typeof imageBase64 !== "string") return json({ error: "Falta imageBase64" }, 400);
+  if (!imageBase64 || typeof imageBase64 !== "string") return json({ error: "Falta imageBase64", code: "invalid_image" }, 400);
   const value = imageBase64.trim();
-  if (value.length > MAX_IMAGE_BASE64_LENGTH) return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera." }, 413);
+  if (value.length > MAX_IMAGE_BASE64_LENGTH) return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera.", code: "payload_too_large" }, 413);
   if (value.startsWith("data:")) {
-    if (!ALLOWED_DATA_URL_PATTERN.test(value)) return json({ error: "Formato de imagen no válido" }, 400);
+    if (!ALLOWED_DATA_URL_PATTERN.test(value)) return json({ error: "Formato de imagen no válido", code: "invalid_image" }, 400);
     return value;
   }
-  if (!/^[A-Za-z0-9+/=\s]+$/.test(value.slice(0, 500))) return json({ error: "Formato de imagen no válido" }, 400);
+  if (!/^[A-Za-z0-9+/=\s]+$/.test(value.slice(0, 500))) return json({ error: "Formato de imagen no válido", code: "invalid_image" }, 400);
   return `data:image/jpeg;base64,${value.replace(/\s+/g, "")}`;
 }
 
@@ -146,5 +146,16 @@ function normalize(r: Record<string, unknown>) {
   }).filter((i) => i.name.trim());
   return { store: typeof r.store === "string" ? r.store.slice(0, 80) : undefined, date: typeof r.date === "string" ? r.date.slice(0, 20) : undefined, items, ...(items.length ? {} : { message: EMPTY_MESSAGE }) };
 }
-function json(data: unknown, status = 200) { return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }); }
+function json(data: unknown, status = 200) {
+  console.info("[analyze-receipt] response_status", { status });
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
+  });
+}
 class PayloadTooLargeError extends Error { constructor() { super("Payload too large"); this.name = "PayloadTooLargeError"; } }
