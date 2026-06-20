@@ -29,6 +29,7 @@ export const aiRateLimits = {
   generateDiet: { name: "generate-diet", userLimit: 10, ipLimit: 30, windowMs: ONE_HOUR_MS },
   analyzeMeal: { name: "analyze-meal", userLimit: 15, ipLimit: 45, windowMs: ONE_HOUR_MS },
   estimateMeal: { name: "estimate-meal", userLimit: 20, ipLimit: 60, windowMs: ONE_HOUR_MS },
+  analyzeReceipt: { name: "analyze-receipt", userLimit: 15, ipLimit: 45, windowMs: ONE_HOUR_MS },
 } satisfies Record<string, RateLimitConfig>;
 
 /**

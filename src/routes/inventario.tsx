@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/store";
 import { useShoppingList } from "@/lib/shopping";
 import { estimateProductMacros } from "@/lib/estimate-product-macros-client";
-import { estimateMeal } from "@/lib/estimate-meal-client";
-import { AlertTriangle, Check, Loader2, Minus, Plus, Refrigerator, ShoppingCart, Snowflake, Pencil, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
+import { analyzeReceipt, type ReceiptAnalysis, type ReceiptItem } from "@/lib/analyze-receipt-client";
+import { AlertTriangle, Check, Loader2, Minus, Plus, ReceiptText, Refrigerator, ShoppingCart, Snowflake, Pencil, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/inventario")({
@@ -36,6 +36,7 @@ function Inventory() {
   const [tab, setTab] = useState<Location>("despensa");
   const [open, setOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   const list = products.filter((p) => p.location === tab);
 
@@ -75,12 +76,20 @@ function Inventory() {
           <p className="mt-1 text-sm text-muted-foreground">Controla lo que tienes y tu lista de la compra.</p>
         </div>
         {section === "products" && (
-          <button
-            onClick={openAddDialog}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow"
-          >
-            <Plus className="h-4 w-4" /> Añadir
-          </button>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              onClick={() => setReceiptOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/15"
+            >
+              <ReceiptText className="h-4 w-4" /> Escanear ticket
+            </button>
+            <button
+              onClick={openAddDialog}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow"
+            >
+              <Plus className="h-4 w-4" /> Añadir
+            </button>
+          </div>
         )}
       </div>
 
@@ -103,6 +112,17 @@ function Inventory() {
         <ShoppingListView />
       ) : (
         <ProductsView products={products} list={list} tab={tab} setTab={setTab} adjust={adjust} remove={remove} edit={openEditDialog} />
+      )}
+
+      {receiptOpen && section === "products" && (
+        <ReceiptScannerDialog
+          defaultLocation={tab}
+          onClose={() => setReceiptOpen(false)}
+          onAdd={(newProducts) => {
+            setProducts((prev) => [...newProducts, ...prev]);
+            setReceiptOpen(false);
+          }}
+        />
       )}
 
       {open && section === "products" && (
@@ -313,6 +333,132 @@ function stepFor(p: Product) {
   return 50;
 }
 
+
+type ReviewReceiptItem = ReceiptItem & { id: string; selected: boolean; location: Location };
+
+function ReceiptScannerDialog({
+  defaultLocation,
+  onClose,
+  onAdd,
+}: {
+  defaultLocation: Location;
+  onClose: () => void;
+  onAdd: (products: Product[]) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [analysis, setAnalysis] = useState<ReceiptAnalysis | null>(null);
+  const [items, setItems] = useState<ReviewReceiptItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(file: File | undefined) {
+    if (!file) return;
+    setLoading(true);
+    setError(null);
+    setAnalysis(null);
+    setItems([]);
+    try {
+      const imageBase64 = await fileToDataUrl(file);
+      const result = await analyzeReceipt(imageBase64);
+      setAnalysis(result);
+      setItems(result.items.map((item) => ({ ...item, id: uid(), selected: true, location: item.suggestedLocation ?? defaultLocation })));
+      if (result.items.length === 0) setError("No he podido detectar productos claros. Prueba con una foto más nítida y tomada de frente.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "No se pudo analizar el ticket. Inténtalo de nuevo.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function updateItem(id: string, next: Partial<ReviewReceiptItem>) {
+    setItems((current) => current.map((item) => (item.id === id ? { ...item, ...next } : item)));
+  }
+
+  function addSelected() {
+    const selected = items.filter((item) => item.selected && item.name.trim());
+    if (selected.length === 0) {
+      toast.error("Selecciona al menos un producto para añadir.");
+      return;
+    }
+    onAdd(selected.map((item) => ({
+      id: uid(),
+      name: item.name.trim(),
+      brand: analysis?.store?.trim() || undefined,
+      usualServing: undefined,
+      location: item.location,
+      quantity: item.quantity,
+      unit: item.unit,
+      minStock: 0,
+      per: item.unit === "ud" ? "unit" : "100g",
+      kcal: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+    })));
+    toast.success(`${selected.length} producto${selected.length === 1 ? "" : "s"} añadido${selected.length === 1 ? "" : "s"} al inventario`);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-end bg-background/70 backdrop-blur-sm md:place-items-center" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-border/60 bg-card p-6 shadow-card md:rounded-3xl">
+        <h2 className="font-display text-xl font-bold">Escanear ticket</h2>
+        <p className="mt-1 text-xs text-muted-foreground">Sube una foto del ticket. Revisarás y confirmarás los productos antes de guardarlos.</p>
+        <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="mt-4 block w-full text-sm" onChange={(e) => void handleFile(e.target.files?.[0])} disabled={loading} />
+        {loading && <div className="mt-4 flex items-center gap-2 rounded-xl bg-primary/10 p-3 text-sm text-primary"><Loader2 className="h-4 w-4 animate-spin" /> Analizando ticket…</div>}
+        {error && !loading && <p className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+        {analysis?.store && <p className="mt-3 text-xs text-muted-foreground">Tienda detectada: <span className="font-medium text-foreground">{analysis.store}</span>{analysis.date ? ` · ${analysis.date}` : ""}</p>}
+        {items.length > 0 && (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm font-medium">Revisa los productos detectados antes de añadirlos.</p>
+            <p className="text-xs text-muted-foreground">Los macros quedan pendientes: esta primera versión solo añade nombre, cantidad, unidad y ubicación.</p>
+            {items.map((item) => (
+              <div key={item.id} className="grid gap-2 rounded-2xl border border-border/60 bg-background/40 p-3 sm:grid-cols-[auto_1fr_90px_90px_130px] sm:items-end">
+                <label className="flex items-center gap-2 text-sm sm:pb-2">
+                  <input type="checkbox" checked={item.selected} onChange={(e) => updateItem(item.id, { selected: e.target.checked })} />
+                  <span className="sm:hidden">Seleccionar</span>
+                </label>
+                <Field label="Nombre">
+                  <input value={item.name} onChange={(e) => updateItem(item.id, { name: e.target.value })} className={inputCls} />
+                </Field>
+                <Field label="Cantidad">
+                  <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateItem(item.id, { quantity: +e.target.value })} className={inputCls} />
+                </Field>
+                <Field label="Unidad">
+                  <select value={item.unit} onChange={(e) => updateItem(item.id, { unit: e.target.value as Unit })} className={inputCls}>
+                    <option value="ud">ud</option><option value="pack">pack</option><option value="lata">lata</option><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option>
+                  </select>
+                </Field>
+                <Field label="Ubicación">
+                  <select value={item.location} onChange={(e) => updateItem(item.id, { location: e.target.value as Location })} className={inputCls}>
+                    <option value="despensa">Despensa</option><option value="nevera">Nevera</option><option value="congelador">Congelador</option>
+                  </select>
+                </Field>
+                <p className="text-xs text-muted-foreground sm:col-start-2 sm:col-span-4">Confianza: {item.confidence}{item.price !== undefined ? ` · Precio: ${item.price}€` : ""}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-xl border border-border bg-muted/40 px-4 py-2 text-sm font-medium">Cancelar</button>
+          <button type="button" onClick={addSelected} disabled={loading || items.every((item) => !item.selected)} className="rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">Añadir seleccionados</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("No se pudo leer la imagen."));
+    reader.readAsDataURL(file);
+  });
+}
+
 function ProductDialog({
   defaultLocation,
   product,
@@ -440,6 +586,8 @@ function ProductDialog({
               <option value="ml">ml</option>
               <option value="l">litros</option>
               <option value="ud">unidades</option>
+              <option value="pack">pack</option>
+              <option value="lata">lata</option>
             </select>
           </Field>
           <Field label="Cantidad actual">
