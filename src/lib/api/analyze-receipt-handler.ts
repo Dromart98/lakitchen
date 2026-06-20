@@ -7,7 +7,7 @@ const OPENAI_TIMEOUT_MS = 30000;
 const MAX_IMAGE_BASE64_LENGTH = 8 * 1024 * 1024;
 const MAX_REQUEST_BYTES = 9 * 1024 * 1024;
 const ALLOWED_DATA_URL_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/i;
-const EMPTY_MESSAGE = "No se detectaron productos alimentarios claros.";
+const EMPTY_MESSAGE = "No he podido detectar productos claros. Prueba con una foto más nítida y tomada de frente.";
 
 export async function handleAnalyzeReceiptRequest(request: Request): Promise<Response> {
   if (request.method !== "POST") return json({ error: "Method not allowed", code: "method_not_allowed" }, 405);
@@ -27,7 +27,7 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
       body = await readRequestJson(request, MAX_REQUEST_BYTES);
     } catch (error) {
       if (error instanceof PayloadTooLargeError) {
-        return json({ error: "La petición es demasiado grande.", code: "payload_too_large" }, 413);
+        return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera.", code: "payload_too_large" }, 413);
       }
       return json({ error: "JSON inválido" }, 400);
     }
@@ -46,7 +46,7 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
         body: JSON.stringify(buildPayload(validation)),
       });
     } catch (error) {
-      if (isAbortError(error)) return json({ error: "OpenAI request timed out", code: "openai_timeout" }, 504);
+      if (isAbortError(error)) return json({ error: "El análisis está tardando demasiado. Prueba con una foto tomada de frente, con buena luz y que no pese demasiado.", code: "openai_timeout" }, 504);
       console.error("[analyze-receipt] OpenAI request failed", getSafeErrorLog(error));
       return json({ error: "Error al conectar con OpenAI", code: "openai_network_error" }, 502);
     } finally {
@@ -57,7 +57,7 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
       console.warn("[analyze-receipt] OpenAI returned error", { status: upstream.status });
       if (upstream.status === 429) return json({ error: "Límite de uso alcanzado. Intenta más tarde." }, 429);
       if (upstream.status === 401) return json({ error: "Configuración OpenAI inválida" }, 500);
-      if (upstream.status === 413) return json({ error: "La imagen es demasiado grande. Usa una foto más ligera." }, 413);
+      if (upstream.status === 413) return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera." }, 413);
       return json({ error: `Error OpenAI (${upstream.status})` }, 500);
     }
 
@@ -80,7 +80,7 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
 function validateImageInput(imageBase64: unknown): string | Response {
   if (!imageBase64 || typeof imageBase64 !== "string") return json({ error: "Falta imageBase64" }, 400);
   const value = imageBase64.trim();
-  if (value.length > MAX_IMAGE_BASE64_LENGTH) return json({ error: "La imagen es demasiado grande. Usa una foto más ligera." }, 413);
+  if (value.length > MAX_IMAGE_BASE64_LENGTH) return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera." }, 413);
   if (value.startsWith("data:")) {
     if (!ALLOWED_DATA_URL_PATTERN.test(value)) return json({ error: "Formato de imagen no válido" }, 400);
     return value;
@@ -99,10 +99,10 @@ function buildPayload(dataUrl: string) {
   return {
     model: "gpt-4o-mini",
     messages: [
-      { role: "system", content: "Eres un asistente que extrae productos alimentarios de tickets de supermercado. Devuelve solo productos alimentarios claros. Ignora descuentos, bolsas, impuestos, total, subtotal, tarjeta, cambio y promociones no asociadas a un producto. No inventes productos. Sugiere ubicación entre despensa, nevera o congelador. Si no hay productos claros, items debe ser []." },
-      { role: "user", content: [{ type: "text", text: "Analiza este ticket y devuelve tienda, fecha si aparece y productos alimentarios detectados." }, { type: "image_url", image_url: { url: dataUrl } }] },
+      { role: "system", content: "Eres un asistente que extrae productos alimentarios de tickets reales de supermercado. Sé tolerante con texto borroso, torcido, en mayúsculas, abreviaturas y cantidades o precios en líneas separadas. Detecta productos alimentarios aunque la confianza sea baja, pero no inventes productos. Ignora bolsas, aceite sintético, descuentos, impuestos, total, subtotal, tarjeta, pagos, cambio y promociones no asociadas a un producto. Normaliza ejemplos como PECHUGA PAVO S/GR a Pechuga de pavo, PECHUGA POLLO FILE a Pechuga de pollo fileteada, ALBONDIGAS ATUN a Albóndigas de atún, FILETES ATUN SALSA a Filetes de atún en salsa, ZUMO NARANJA X6 a Zumo de naranja x6, PAN S/CORTEZA 450G a Pan sin corteza 450 g, y FANTA NARANJA LATA + 8 x 0,43 a Fanta naranja lata con quantity 8 y unit lata. Usa solo unidades ud, g, kg, ml, l, pack o lata. Sugiere ubicación entre despensa, nevera o congelador. Si no hay productos claros, items debe ser [] y message debe pedir una foto más nítida y tomada de frente." },
+      { role: "user", content: [{ type: "text", text: "Analiza este ticket y devuelve tienda, fecha si aparece y productos alimentarios detectados. Devuelve todos los alimentos plausibles, incluso con confianza baja." }, { type: "image_url", image_url: { url: dataUrl } }] },
     ],
-    tools: [{ type: "function", function: { name: "report_receipt", description: "Productos alimentarios detectados en un ticket", parameters: { type: "object", properties: { store: { type: "string" }, date: { type: "string" }, items: { type: "array", items: { type: "object", properties: { name: { type: "string" }, quantity: { type: "number" }, unit: { type: "string", enum: ["ud", "g", "kg", "ml", "l"] }, price: { type: "number" }, suggestedLocation: { type: "string", enum: ["despensa", "nevera", "congelador"] }, confidence: { type: "string", enum: ["baja", "media", "alta"] } }, required: ["name", "quantity", "unit", "suggestedLocation", "confidence"], additionalProperties: false } }, message: { type: "string" } }, required: ["items"], additionalProperties: false } } }],
+    tools: [{ type: "function", function: { name: "report_receipt", description: "Productos alimentarios detectados en un ticket", parameters: { type: "object", properties: { store: { type: "string" }, date: { type: "string" }, items: { type: "array", items: { type: "object", properties: { name: { type: "string" }, quantity: { type: "number" }, unit: { type: "string", enum: ["ud", "g", "kg", "ml", "l", "pack", "lata"] }, price: { type: "number" }, suggestedLocation: { type: "string", enum: ["despensa", "nevera", "congelador"] }, confidence: { type: "string", enum: ["baja", "media", "alta"] } }, required: ["name", "quantity", "unit", "suggestedLocation", "confidence"], additionalProperties: false } }, message: { type: "string" } }, required: ["items"], additionalProperties: false } } }],
     tool_choice: { type: "function", function: { name: "report_receipt" } },
     max_tokens: 1000,
   };
@@ -119,7 +119,7 @@ function normalize(r: Record<string, unknown>) {
   const items = rawItems.map((x) => getRecord(x)).filter((x): x is Record<string, unknown> => Boolean(x)).map((i) => {
     const location = ["despensa", "nevera", "congelador"].includes(String(i.suggestedLocation)) ? String(i.suggestedLocation) : "despensa";
     const confidence = ["baja", "media", "alta"].includes(String(i.confidence)) ? String(i.confidence) : "media";
-    const unit = ["ud", "g", "kg", "ml", "l"].includes(String(i.unit)) ? String(i.unit) : "ud";
+    const unit = ["ud", "g", "kg", "ml", "l", "pack", "lata"].includes(String(i.unit)) ? String(i.unit) : "ud";
     return { name: String(i.name ?? "").slice(0, 100), quantity: clamp(Number(i.quantity || 1), 100000), unit, price: i.price == null ? undefined : clamp(Number(i.price), 100000), suggestedLocation: location, confidence };
   }).filter((i) => i.name.trim());
   return { store: typeof r.store === "string" ? r.store.slice(0, 80) : undefined, date: typeof r.date === "string" ? r.date.slice(0, 20) : undefined, items, ...(items.length ? {} : { message: EMPTY_MESSAGE }) };

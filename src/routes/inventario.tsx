@@ -5,6 +5,7 @@ import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/
 import { useShoppingList } from "@/lib/shopping";
 import { estimateProductMacros } from "@/lib/estimate-product-macros-client";
 import { analyzeReceipt, type ReceiptAnalysis, type ReceiptItem } from "@/lib/analyze-receipt-client";
+import { compressImage } from "@/lib/compress";
 import { AlertTriangle, Check, Loader2, Minus, Plus, ReceiptText, Refrigerator, ShoppingCart, Snowflake, Pencil, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 
@@ -262,6 +263,8 @@ function ShoppingListView() {
             <option value="kg">kg</option>
             <option value="ml">ml</option>
             <option value="l">l</option>
+            <option value="pack">pack</option>
+            <option value="lata">lata</option>
           </select>
           <button disabled={!name.trim()} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
             <Plus className="h-4 w-4" /> Añadir
@@ -328,11 +331,16 @@ function ShoppingListView() {
 }
 
 function stepFor(p: Product) {
-  if (p.unit === "ud") return 1;
+  if (p.unit === "ud" || p.unit === "pack" || p.unit === "lata") return 1;
   if (p.unit === "kg" || p.unit === "l") return 0.1;
   return 50;
 }
 
+
+const MAX_RECEIPT_IMAGE_SIDE = 1600;
+const RECEIPT_IMAGE_QUALITY = 0.85;
+const MAX_RECEIPT_DATA_URL_LENGTH = 7.5 * 1024 * 1024;
+const ACCEPTED_RECEIPT_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
 type ReviewReceiptItem = ReceiptItem & { id: string; selected: boolean; location: Location };
 
@@ -350,6 +358,7 @@ function ReceiptScannerDialog({
   const [items, setItems] = useState<ReviewReceiptItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [compressionInfo, setCompressionInfo] = useState<string | null>(null);
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
@@ -357,19 +366,25 @@ function ReceiptScannerDialog({
     setError(null);
     setAnalysis(null);
     setItems([]);
+    setCompressionInfo(null);
+    let success = false;
     try {
+      validateReceiptFile(file);
       const imageBase64 = await fileToDataUrl(file);
-      const result = await analyzeReceipt(imageBase64);
+      const compressedImage = await compressReceiptImage(imageBase64);
+      setCompressionInfo(getCompressionInfo(imageBase64, compressedImage));
+      const result = await analyzeReceipt(compressedImage);
       setAnalysis(result);
       setItems(result.items.map((item) => ({ ...item, id: uid(), selected: true, location: item.suggestedLocation ?? defaultLocation })));
-      if (result.items.length === 0) setError("No he podido detectar productos claros en este ticket. Prueba con una foto más nítida.");
+      if (result.items.length === 0) setError(result.message ?? "No he podido detectar productos claros. Prueba con una foto más nítida y tomada de frente.");
+      success = true;
     } catch (e) {
       const message = e instanceof Error ? e.message : "No se pudo analizar el ticket. Inténtalo de nuevo.";
       setError(message);
       toast.error(message);
     } finally {
       setLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (success && fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -392,7 +407,7 @@ function ReceiptScannerDialog({
       quantity: item.quantity,
       unit: item.unit,
       minStock: 0,
-      per: item.unit === "ud" ? "unit" : "100g",
+      per: item.unit === "ud" || item.unit === "pack" || item.unit === "lata" ? "unit" : "100g",
       kcal: 0,
       protein: 0,
       carbs: 0,
@@ -408,6 +423,7 @@ function ReceiptScannerDialog({
         <p className="mt-1 text-xs text-muted-foreground">Sube una foto del ticket. Revisarás y confirmarás los productos antes de guardarlos.</p>
         <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="mt-4 block w-full text-sm" onChange={(e) => void handleFile(e.target.files?.[0])} disabled={loading} />
         {loading && <div className="mt-4 flex items-center gap-2 rounded-xl bg-primary/10 p-3 text-sm text-primary"><Loader2 className="h-4 w-4 animate-spin" /> Analizando ticket…</div>}
+        {compressionInfo && <p className="mt-3 text-xs text-muted-foreground">{compressionInfo}</p>}
         {error && !loading && <p className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
         {analysis?.store && <p className="mt-3 text-xs text-muted-foreground">Tienda detectada: <span className="font-medium text-foreground">{analysis.store}</span>{analysis.date ? ` · ${analysis.date}` : ""}</p>}
         {items.length > 0 && (
@@ -428,7 +444,7 @@ function ReceiptScannerDialog({
                 </Field>
                 <Field label="Unidad">
                   <select value={item.unit} onChange={(e) => updateItem(item.id, { unit: e.target.value as Unit })} className={inputCls}>
-                    <option value="ud">ud</option><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option>
+                    <option value="ud">ud</option><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option><option value="pack">pack</option><option value="lata">lata</option>
                   </select>
                 </Field>
                 <Field label="Ubicación">
@@ -448,6 +464,37 @@ function ReceiptScannerDialog({
       </div>
     </div>
   );
+}
+
+function validateReceiptFile(file: File) {
+  if (!ACCEPTED_RECEIPT_IMAGE_TYPES.has(file.type)) {
+    throw new Error("Formato de imagen no válido. Usa JPG, PNG o WebP.");
+  }
+}
+
+async function compressReceiptImage(dataUrl: string): Promise<string> {
+  try {
+    const compressed = await compressImage(dataUrl, MAX_RECEIPT_IMAGE_SIDE, RECEIPT_IMAGE_QUALITY);
+    if (compressed.length > MAX_RECEIPT_DATA_URL_LENGTH) {
+      throw new Error("La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera.");
+    }
+    return compressed;
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("La imagen es demasiado pesada")) throw error;
+    throw new Error("No se pudo preparar la imagen del ticket. Prueba con una foto JPG, PNG o WebP tomada de frente.");
+  }
+}
+
+function getCompressionInfo(original: string, compressed: string) {
+  const originalKb = Math.round(dataUrlApproxBytes(original) / 1024);
+  const compressedKb = Math.round(dataUrlApproxBytes(compressed) / 1024);
+  if (compressed.length >= original.length) return `Imagen preparada para análisis (~${compressedKb} KB).`;
+  return `Imagen optimizada para análisis: ~${originalKb} KB → ~${compressedKb} KB.`;
+}
+
+function dataUrlApproxBytes(dataUrl: string) {
+  const base64 = dataUrl.split(",")[1] ?? dataUrl;
+  return Math.floor((base64.length * 3) / 4);
 }
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -586,6 +633,8 @@ function ProductDialog({
               <option value="ml">ml</option>
               <option value="l">litros</option>
               <option value="ud">unidades</option>
+              <option value="pack">pack</option>
+              <option value="lata">lata</option>
             </select>
           </Field>
           <Field label="Cantidad actual">
