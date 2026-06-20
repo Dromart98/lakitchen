@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/store";
 import { useShoppingList } from "@/lib/shopping";
-import { estimateProductMacros } from "@/lib/estimate-product-macros-client";
+import { EstimateProductMacrosError, estimateProductMacros } from "@/lib/estimate-product-macros-client";
 import { analyzeReceipt, type ReceiptAnalysis, type ReceiptItem } from "@/lib/analyze-receipt-client";
 import { compressImage } from "@/lib/compress";
 import { AlertTriangle, Check, Loader2, Minus, Plus, ReceiptText, Refrigerator, ShoppingCart, Snowflake, Pencil, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
@@ -776,28 +776,19 @@ function ProductDialog({
   );
 }
 
-function buildProductEstimateDescription(form: Product, name: string) {
-  const details = [
-    `Estima los valores nutricionales por 100 g del producto: ${name}`,
-    form.brand?.trim() ? `Marca/supermercado: ${form.brand.trim()}` : null,
-    form.usualServing?.trim() ? `Ración habitual: ${form.usualServing.trim()}` : null,
-    "Devuelve kcal, proteína, carbohidratos y grasas por 100 g o 100 ml si claramente es líquido.",
-    "No calcules el paquete completo ni guardes el producto automáticamente.",
-  ].filter(Boolean);
-
-  return details.join(". ");
-}
-
 function getProductEstimateErrorMessage(error: unknown) {
+  if (error instanceof EstimateProductMacrosError) {
+    if (error.code === "not_food") return "No parece un producto alimentario válido.";
+    if (error.code === "timeout" || error.code === "openai_timeout") return "La estimación está tardando demasiado. Prueba de nuevo.";
+    return error.message;
+  }
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
     if (message.includes("not_food") || message.includes("no parece una comida válida") || message.includes("no parece un producto alimentario válido")) return "No parece un producto alimentario válido.";
     if (message.includes("timeout") || message.includes("tardando demasiado")) return "La estimación está tardando demasiado. Prueba de nuevo.";
-    if (message.includes("rate") || message.includes("429") || message.includes("demasiadas")) return "Has hecho demasiadas estimaciones seguidas. Espera un momento y prueba de nuevo.";
-    return error.message;
   }
 
-  return "Error estimando macros. Inténtalo de nuevo.";
+  return "No se pudo estimar este producto automáticamente. Prueba con un nombre más concreto o introduce los macros manualmente.";
 }
 
 const inputCls =
