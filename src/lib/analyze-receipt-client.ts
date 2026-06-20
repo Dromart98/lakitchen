@@ -85,7 +85,7 @@ function normalizeItem(value: unknown): ReceiptItem | null {
   if (!record) return null;
   const name = String(record.name ?? "").trim().slice(0, 100);
   if (!name) return null;
-  const unit = ["ud", "g", "kg", "ml", "l"].includes(String(record.unit)) ? (String(record.unit) as Unit) : "ud";
+  const unit = ["ud", "g", "kg", "ml", "l", "pack", "lata"].includes(String(record.unit)) ? (String(record.unit) as Unit) : "ud";
   const suggestedLocation = ["despensa", "nevera", "congelador"].includes(String(record.suggestedLocation)) ? (String(record.suggestedLocation) as Location) : "despensa";
   const confidence = ["baja", "media", "alta"].includes(String(record.confidence)) ? (String(record.confidence) as ReceiptItem["confidence"]) : "media";
   const price = record.price == null ? undefined : clamp(record.price, 100000);

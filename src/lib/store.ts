@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { autoAddDepleted } from "@/lib/shopping";
 
 export type Location = "despensa" | "nevera" | "congelador";
-export type Unit = "ud" | "g" | "kg" | "ml" | "l";
+export type Unit = "ud" | "g" | "kg" | "ml" | "l" | "pack" | "lata";
 
 export interface Product {
   id: string;
