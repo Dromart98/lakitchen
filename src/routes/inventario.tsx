@@ -5,6 +5,7 @@ import { useProducts, uid, type Location, type Product, type Unit } from "@/lib/
 import { useShoppingList } from "@/lib/shopping";
 import { EstimateProductMacrosError, estimateProductMacros } from "@/lib/estimate-product-macros-client";
 import { AnalyzeReceiptError, analyzeReceipt, type ReceiptAnalysis, type ReceiptItem } from "@/lib/analyze-receipt-client";
+import { analyzeReceipt, type ReceiptAnalysis, type ReceiptItem } from "@/lib/analyze-receipt-client";
 import { compressImage } from "@/lib/compress";
 import { AlertTriangle, Check, Loader2, Minus, Plus, ReceiptText, Refrigerator, ShoppingCart, Snowflake, Pencil, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
