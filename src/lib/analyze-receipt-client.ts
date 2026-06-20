@@ -21,7 +21,15 @@ export type ReceiptAnalysis = {
 
 export async function analyzeReceipt(imageBase64: string): Promise<ReceiptAnalysis> {
   const controller = new AbortController();
+  const startedAt = performance.now();
+  const payloadBytes = new TextEncoder().encode(JSON.stringify({ imageBase64 })).byteLength;
   let timeoutId: number | undefined;
+
+  console.info("[analyze-receipt] client request started", {
+    imageApproxKb: Math.round(((imageBase64.split(",")[1] ?? imageBase64).length * 3) / 4 / 1024),
+    payloadApproxKb: Math.round(payloadBytes / 1024),
+    timeoutMs: ANALYZE_RECEIPT_TIMEOUT_MS,
+  });
 
   try {
     const request = authFetch("/api/analyze-receipt", {
@@ -39,13 +47,24 @@ export async function analyzeReceipt(imageBase64: string): Promise<ReceiptAnalys
     });
 
     const res = await Promise.race([request, timeout]);
+    console.info("[analyze-receipt] client response received", {
+      status: res.status,
+      durationMs: Math.round(performance.now() - startedAt),
+    });
     const data = await readResponseBody(res);
     if (!res.ok) throw new Error(getAnalyzeReceiptErrorMessage(res.status, data));
     return normalizeReceiptAnalysis(data);
   } catch (error) {
-    if (isAbortError(error)) throw new Error("El análisis está tardando demasiado. Prueba con una foto tomada de frente, con buena luz y que no pese demasiado.");
+    if (isAbortError(error)) {
+      console.warn("[analyze-receipt] client request aborted", {
+        durationMs: Math.round(performance.now() - startedAt),
+        timeoutMs: ANALYZE_RECEIPT_TIMEOUT_MS,
+      });
+      throw new Error("El análisis está tardando demasiado. Prueba con una foto tomada de frente, con buena luz y que no pese demasiado.");
+    }
     throw error;
   } finally {
+    console.info("[analyze-receipt] client request finished", { durationMs: Math.round(performance.now() - startedAt) });
     if (timeoutId !== undefined) window.clearTimeout(timeoutId);
   }
 }

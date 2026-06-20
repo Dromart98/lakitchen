@@ -10,6 +10,8 @@ const ALLOWED_DATA_URL_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/i;
 const EMPTY_MESSAGE = "No he podido detectar productos claros. Prueba con una foto más nítida y tomada de frente.";
 
 export async function handleAnalyzeReceiptRequest(request: Request): Promise<Response> {
+  const handlerStartedAt = Date.now();
+  console.info("[analyze-receipt] handler started", { method: request.method });
   if (request.method !== "POST") return json({ error: "Method not allowed", code: "method_not_allowed" }, 405);
 
   try {
@@ -25,6 +27,10 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
     let body: Body;
     try {
       body = await readRequestJson(request, MAX_REQUEST_BYTES);
+      console.info("[analyze-receipt] request payload received", {
+        payloadApproxKb: Math.round(new TextEncoder().encode(JSON.stringify(body)).byteLength / 1024),
+        imageApproxKb: typeof body.imageBase64 === "string" ? Math.round(((body.imageBase64.split(",")[1] ?? body.imageBase64).length * 3) / 4 / 1024) : 0,
+      });
     } catch (error) {
       if (error instanceof PayloadTooLargeError) {
         return json({ error: "La imagen es demasiado pesada. Haz una foto más cercana o selecciona una imagen más ligera.", code: "payload_too_large" }, 413);
@@ -36,8 +42,16 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
     if (validation instanceof Response) return validation;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => {
+      console.warn("[analyze-receipt] OpenAI timeout reached", { timeoutMs: OPENAI_TIMEOUT_MS });
+      controller.abort();
+    }, OPENAI_TIMEOUT_MS);
     let upstream: Response;
+    const openAiStartedAt = Date.now();
+    console.info("[analyze-receipt] OpenAI request started", {
+      imageUrlApproxKb: Math.round(((validation.split(",")[1] ?? validation).length * 3) / 4 / 1024),
+      timeoutMs: OPENAI_TIMEOUT_MS,
+    });
     try {
       upstream = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -50,6 +64,7 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
       console.error("[analyze-receipt] OpenAI request failed", getSafeErrorLog(error));
       return json({ error: "Error al conectar con OpenAI", code: "openai_network_error" }, 502);
     } finally {
+      console.info("[analyze-receipt] OpenAI request finished", { durationMs: Date.now() - openAiStartedAt });
       clearTimeout(timeoutId);
     }
 
@@ -74,6 +89,8 @@ export async function handleAnalyzeReceiptRequest(request: Request): Promise<Res
   } catch (error) {
     console.error("[analyze-receipt] Unexpected error", getSafeErrorLog(error));
     return json({ error: "Error al analizar el ticket" }, 500);
+  } finally {
+    console.info("[analyze-receipt] handler finished", { durationMs: Date.now() - handlerStartedAt });
   }
 }
 

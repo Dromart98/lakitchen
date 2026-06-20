@@ -370,10 +370,22 @@ function ReceiptScannerDialog({
     let success = false;
     try {
       validateReceiptFile(file);
+      const prepareStartedAt = performance.now();
+      console.info("[analyze-receipt] image preparation started", {
+        fileApproxKb: Math.round(file.size / 1024),
+        fileType: file.type,
+      });
       const imageBase64 = await fileToDataUrl(file);
       const compressedImage = await compressReceiptImage(imageBase64);
+      console.info("[analyze-receipt] image preparation finished", {
+        originalApproxKb: Math.round(dataUrlApproxBytes(imageBase64) / 1024),
+        preparedApproxKb: Math.round(dataUrlApproxBytes(compressedImage) / 1024),
+        durationMs: Math.round(performance.now() - prepareStartedAt),
+      });
       setCompressionInfo(getCompressionInfo(imageBase64, compressedImage));
+      const analyzeStartedAt = performance.now();
       const result = await analyzeReceipt(compressedImage);
+      console.info("[analyze-receipt] api call finished", { durationMs: Math.round(performance.now() - analyzeStartedAt) });
       setAnalysis(result);
       setItems(result.items.map((item) => ({ ...item, id: uid(), selected: true, location: item.suggestedLocation ?? defaultLocation })));
       if (result.items.length === 0) setError(result.message ?? "No he podido detectar productos claros. Prueba con una foto más nítida y tomada de frente.");
