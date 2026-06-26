@@ -153,7 +153,7 @@ function AuthPage() {
   }
 
   return (
-    <div className="isolate grid min-h-screen place-items-center bg-background px-4 py-10">
+    <div className="isolate grid min-h-screen place-items-center bg-background bg-gradient-hero px-4 py-10">
       <div className="w-full max-w-md">
         <Link
           to="/"
@@ -167,7 +167,7 @@ function AuthPage() {
         </Link>
         <h1 className="sr-only">Acceder a LaKitchen</h1>
 
-        <div className="relative z-10 rounded-2xl border border-border/60 bg-card p-6 shadow-card">
+        <div className="relative z-10 rounded-3xl border border-border/60 bg-card/90 p-5 shadow-card backdrop-blur sm:p-6">
           <div className="flex gap-1 rounded-xl bg-muted/40 p-1">
             <button
               type="button"
@@ -270,8 +270,16 @@ function AuthPage() {
               </div>
             </Field>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            {info && <p className="text-sm text-primary">{info}</p>}
+            {error && (
+              <p className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            {info && (
+              <p className="rounded-xl border border-primary/25 bg-primary/10 px-3 py-2 text-sm text-primary">
+                {info}
+              </p>
+            )}
 
             <button
               type="submit"

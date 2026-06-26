@@ -1,5 +1,15 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ChefHat, LayoutDashboard, LogIn, LogOut, Package, Salad, Settings, User, UtensilsCrossed } from "lucide-react";
+import {
+  ChefHat,
+  LayoutDashboard,
+  LogIn,
+  LogOut,
+  Package,
+  Salad,
+  Settings,
+  User,
+  UtensilsCrossed,
+} from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { useAuth, signOut } from "@/lib/auth";
 import { applyTheme, getTheme } from "@/lib/theme";
@@ -20,9 +30,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     applyTheme(getTheme());
   }, []);
 
-
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background bg-gradient-hero pb-24">
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
@@ -30,8 +39,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               <UtensilsCrossed className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <div className="font-display text-lg leading-none font-bold tracking-tight">LaKitchen</div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">macro tracker</div>
+              <div className="font-display text-lg leading-none font-bold tracking-tight">
+                LaKitchen
+              </div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                macro tracker
+              </div>
             </div>
           </Link>
           <nav className="hidden gap-1 md:flex">
@@ -77,7 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-5 sm:py-7">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-xl md:hidden">
         <div className="mx-auto flex max-w-5xl items-stretch justify-between">
@@ -88,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={to}
                 to={to}
                 className={
-                  "flex flex-1 flex-col items-center gap-1 py-3 text-[11px] font-medium transition " +
+                  "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition " +
                   (active ? "text-primary" : "text-muted-foreground")
                 }
               >
