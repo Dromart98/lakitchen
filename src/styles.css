@@ -39,10 +39,12 @@
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
   --shadow-glow: 0 0 40px -10px oklch(0.82 0.18 165 / 0.4);
-  --shadow-card: 0 8px 32px -12px oklch(0 0 0 / 0.6);
+  --shadow-card: 0 18px 50px -28px oklch(0 0 0 / 0.75);
   --gradient-primary: linear-gradient(135deg, oklch(0.82 0.18 165), oklch(0.65 0.2 170));
   --gradient-surface: linear-gradient(180deg, oklch(0.18 0.04 180), oklch(0.13 0.03 200));
-  --gradient-hero: radial-gradient(ellipse at top, oklch(0.3 0.1 165 / 0.4), transparent 60%);
+  --gradient-hero:
+    radial-gradient(ellipse at top, oklch(0.3 0.1 165 / 0.42), transparent 58%),
+    linear-gradient(180deg, oklch(0.18 0.04 195), var(--background) 42%);
 }
 
 :root {
@@ -191,6 +193,7 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   h1,
   h2,
@@ -230,7 +233,8 @@
       transform 120ms ease,
       opacity 120ms ease,
       background-color 150ms ease,
-      box-shadow 150ms ease;
+      box-shadow 150ms ease,
+      border-color 150ms ease;
   }
   button:active:not(:disabled),
   [role="button"]:active,
